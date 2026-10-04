@@ -596,7 +596,7 @@
                 var hinweis = zeile.add("statictext", undefined, fehlerfelder[feld]);
                 hinweis.preferredSize.width = 95;
                 try {
-                    var rotHinweis = hinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [0.85, 0.2, 0.2], 1);
+                    var rotHinweis = hinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
                     hinweis.graphics.foregroundColor = rotHinweis;
                 } catch (e) {}
             } else {
