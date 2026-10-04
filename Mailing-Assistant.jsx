@@ -1839,9 +1839,24 @@
             var protokoll=sichereTextbereinigungAnwenden(csvDaten);
             var p=pruefungen(mapping);
             var auff=auffaelligeSammelnLokal(mapping,p);
+            var alleDubletten=eindeutigeDublettenPruefen(csvDaten,mapping);
 
-            if(auff.length==0 && protokoll.length==0){
-                alert("Es gibt keine Pr\u00fcfhinweise oder automatischen Bereinigungen f\u00fcr eine Pr\u00fcfliste.");
+            function datensaetzeExaktGleichPdf(nr1,nr2){
+                var a=csvDaten.datensaetze[nr1-1];
+                var b=csvDaten.datensaetze[nr2-1];
+                if(!a||!b)return false;
+                var max=a.length>b.length?a.length:b.length;
+                var j;
+                for(j=0;j<max;j++){
+                    var av=j<a.length?String(a[j]):"";
+                    var bv=j<b.length?String(b[j]):"";
+                    if(av!=bv)return false;
+                }
+                return true;
+            }
+
+            if(auff.length==0 && protokoll.length==0 && alleDubletten.length==0){
+                alert("Es gibt keine Pr\u00fcfhinweise, automatischen Bereinigungen oder Dubletten f\u00fcr eine Pr\u00fcfliste.");
                 return;
             }
 
@@ -1957,8 +1972,9 @@
                     zeichneText(stream,linkerRand,y,"Bezeichnung: "+(aktuellerAuftrag.bezeichnung||"-"),"F1",9); y-=13;
                     zeichneText(stream,linkerRand,y,"Produktionsdatum: "+(aktuellerAuftrag.produktionsdatum||"-"),"F1",9); y-=13;
                     zeichneText(stream,linkerRand,y,"Auff\u00e4llige Datens\u00e4tze: "+auff.length,"F1",9); y-=13;
-                    zeichneText(stream,linkerRand,y,"Automatisch bereinigte Felder: "+protokoll.length,"F1",9); y-=18;
-                    zeichneText(stream,linkerRand,y,"Die Pr\u00fcfliste dokumentiert offene Pr\u00fcfhinweise und bereits automatisch bereinigte Felder.","F1",9); y-=22;
+                    zeichneText(stream,linkerRand,y,"Automatisch bereinigte Felder: "+protokoll.length,"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Gefundene Dublettenpaare: "+alleDubletten.length,"F1",9); y-=18;
+                    zeichneText(stream,linkerRand,y,"Die Pr\u00fcfliste dokumentiert offene Pr\u00fcfhinweise, automatische Bereinigungen und Dubletten.","F1",9); y-=22;
                 }
 
                 function seiteAbschliessen() {
@@ -2084,6 +2100,131 @@
                     }
                 }
 
+                if(alleDubletten.length>0){
+                    if(y<650){
+                        seiteAbschliessen();
+                        neueSeite();
+                    }
+
+                    zeichneText(stream,linkerRand,y,"DUBLETTENPR\u00dcFUNG","F2",12);
+                    y-=17;
+                    zeichneText(stream,linkerRand,y,"Gefundene Dublettenpaare werden mit Herkunft und Abweichungen dokumentiert.","F1",8.5);
+                    y-=20;
+
+                    var di;
+                    for(di=0;di<alleDubletten.length;di++){
+                        var dub=alleDubletten[di];
+                        var nrL=dub.original;
+                        var nrR=dub.datensatz;
+                        var dsL=csvDaten.datensaetze[nrL-1];
+                        var dsR=csvDaten.datensaetze[nrR-1];
+
+                        var firmaL=wertAusDatensatz(mapping,dsL,"Firma");
+                        var personL=verbindeTeile([
+                            wertAusDatensatz(mapping,dsL,"Anrede"),
+                            wertAusDatensatz(mapping,dsL,"Titel"),
+                            wertAusDatensatz(mapping,dsL,"Vorname"),
+                            wertAusDatensatz(mapping,dsL,"Nachname")
+                        ]);
+                        var empL=firmaL!=""?(personL!=""?firmaL+" / "+personL:firmaL):personL;
+
+                        var firmaR=wertAusDatensatz(mapping,dsR,"Firma");
+                        var personR=verbindeTeile([
+                            wertAusDatensatz(mapping,dsR,"Anrede"),
+                            wertAusDatensatz(mapping,dsR,"Titel"),
+                            wertAusDatensatz(mapping,dsR,"Vorname"),
+                            wertAusDatensatz(mapping,dsR,"Nachname")
+                        ]);
+                        var empR=firmaR!=""?(personR!=""?firmaR+" / "+personR:firmaR):personR;
+
+                        var strL=strassenHausnummerAnalysieren(
+                            wertAusDatensatz(mapping,dsL,"Stra\u00dfe"),
+                            wertAusDatensatz(mapping,dsL,"Hausnummer")
+                        ).zeile;
+                        var pfL=wertAusDatensatz(mapping,dsL,"Postfach");
+                        var poL=plzOrtAnalysieren(
+                            wertAusDatensatz(mapping,dsL,"PLZ"),
+                            wertAusDatensatz(mapping,dsL,"Ort"),
+                            wertAusDatensatz(mapping,dsL,"Land")
+                        ).zeile;
+                        var adrL=verbindeTeile([pfL!=""?postfachZeileNormalisieren(pfL):strL,poL]);
+
+                        var strR=strassenHausnummerAnalysieren(
+                            wertAusDatensatz(mapping,dsR,"Stra\u00dfe"),
+                            wertAusDatensatz(mapping,dsR,"Hausnummer")
+                        ).zeile;
+                        var pfR=wertAusDatensatz(mapping,dsR,"Postfach");
+                        var poR=plzOrtAnalysieren(
+                            wertAusDatensatz(mapping,dsR,"PLZ"),
+                            wertAusDatensatz(mapping,dsR,"Ort"),
+                            wertAusDatensatz(mapping,dsR,"Land")
+                        ).zeile;
+                        var adrR=verbindeTeile([pfR!=""?postfachZeileNormalisieren(pfR):strR,poR]);
+
+                        var exakt=datensaetzeExaktGleichPdf(nrL,nrR);
+                        var key=String(nrL)+"-"+String(nrR);
+                        var statusText="Manuell zu pr\u00fcfen";
+                        if(exakt)statusText="Vollst\u00e4ndig identisch";
+                        if(csvDaten.dublettenstatus && csvDaten.dublettenstatus[key]){
+                            var dsStatus=csvDaten.dublettenstatus[key];
+                            if(dsStatus=="links")statusText="Linken Datensatz behalten";
+                            else if(dsStatus=="rechts")statusText="Rechten Datensatz behalten";
+                            else if(dsStatus=="beide")statusText="Beide behalten";
+                            else if(dsStatus=="zusammengefuehrt")statusText="Zusammengef\u00fchrt";
+                        }else if(csvDaten.autoDublettenEntfernt && csvDaten.autoDublettenEntfernt[key]){
+                            statusText="Identische Dublette automatisch entfernt";
+                        }
+
+                        var diffFelder=[];
+                        var pruefFelder=[
+                            "Firma","Anrede","Titel","Vorname","Nachname","Adresszusatz",
+                            "Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land",
+                            "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
+                        ];
+                        var fj;
+                        for(fj=0;fj<pruefFelder.length;fj++){
+                            var fName=pruefFelder[fj];
+                            var lv=wertAusDatensatz(mapping,dsL,fName);
+                            var rv=wertAusDatensatz(mapping,dsR,fName);
+                            if(trimText(lv).toLowerCase().replace(/\s+/g," ") != trimText(rv).toLowerCase().replace(/\s+/g," ")){
+                                diffFelder.push(fName+": "+(lv!=""?lv:"[leer]")+" <> "+(rv!=""?rv:"[leer]"));
+                            }
+                        }
+
+                        var benoetigt=90+diffFelder.length*11;
+                        if(y-benoetigt<55){
+                            seiteAbschliessen();
+                            neueSeite();
+                            zeichneText(stream,linkerRand,y,"DUBLETTENPR\u00dcFUNG (FORTSETZUNG)","F2",12);
+                            y-=22;
+                        }
+
+                        zeichneText(stream,linkerRand,y,"Paar "+(di+1)+"  |  Status: "+statusText,"F2",9); y-=14;
+                        zeichneText(stream,linkerRand,y,"Links: Datensatz "+nrL+" | Quellzeile "+quellzeileFuerDatensatz(nrL)+" | "+(empL||"[ohne Empf\u00e4nger]"),"F1",8.5); y-=11;
+                        zeichneText(stream,linkerRand,y,"       "+adrL,"F1",8.5); y-=11;
+                        zeichneText(stream,linkerRand,y,"Rechts: Datensatz "+nrR+" | Quellzeile "+quellzeileFuerDatensatz(nrR)+" | "+(empR||"[ohne Empf\u00e4nger]"),"F1",8.5); y-=11;
+                        zeichneText(stream,linkerRand,y,"        "+adrR,"F1",8.5); y-=13;
+
+                        if(diffFelder.length==0){
+                            zeichneText(stream,linkerRand,y,"Abweichungen: keine","F1",8.5); y-=11;
+                        }else{
+                            zeichneText(stream,linkerRand,y,"Abweichende Felder:","F2",8.5); y-=11;
+                            for(fj=0;fj<diffFelder.length;fj++){
+                                var diffZeilen=textBrechen(diffFelder[fj],90);
+                                var dz;
+                                for(dz=0;dz<diffZeilen.length;dz++){
+                                    zeichneText(stream,60,y,diffZeilen[dz],"F1",8.2);
+                                    y-=10;
+                                }
+                            }
+                        }
+
+                        y-=5;
+                        zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.82",0.45);
+                        y-=12;
+                    }
+                }
+
                 seiteAbschliessen();
 
                 var objekte=[];
@@ -2177,7 +2318,7 @@
             aktionen.spacing=12;
 
             var pdf=aktionen.add("button",undefined,"Pr\u00fcfliste als PDF");
-            pdf.enabled=auff.length>0 || protokoll.length>0;
+            pdf.enabled=auff.length>0 || protokoll.length>0 || eindeutigeDublettenPruefen(csvDaten,mapping).length>0;
             var freigabe=aktionen.add("button",undefined,"Weiter zur Datensatzfreigabe");
 
             pdf.onClick=function(){ aktuellesMapping=mapping; dlg.close(7); };
