@@ -1828,8 +1828,32 @@
                 return feld;
             }
 
-            function kompletteAdresse(datensatz) {
-                var zeilen = [];
+            function normalisiereExportSpaltenname(text) {
+                var wert = trimText(text).toLowerCase();
+                wert = wert.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+                return wert.replace(/[^a-z0-9]/g, "");
+            }
+
+            function exportWert(datensatz, feld) {
+                var wert = wertAusDatensatz(mapping, datensatz, feld);
+                if (wert != "") return wert;
+
+                // Robuster Fallback für Straße: Falls die Mapping-Referenz beim Export
+                // verloren geht, die Quellspalte anhand ihres Namens direkt auflösen.
+                if (feld == "Straße") {
+                    var aliases = {"strasse":true, "street":true, "streetname":true};
+                    var s;
+                    for (s = 0; s < csvDaten.spalten.length; s++) {
+                        if (aliases[normalisiereExportSpaltenname(csvDaten.spalten[s])]) {
+                            return s < datensatz.length ? trimText(datensatz[s]) : "";
+                        }
+                    }
+                }
+
+                return wert;
+            }
+
+            var zeilen = [];
 
                 var firma = wertAusDatensatz(mapping, datensatz, "Firma");
                 var person = verbindeTeile([
@@ -1882,7 +1906,7 @@
             }
 
             var zeilen = [];
-            var header = ["Datensatz", "Adresse_komplett"];
+            var header = ["Datensatz"];
             for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
             zeilen.push(header.join("\t"));
 
@@ -1890,19 +1914,10 @@
             for (r = 0; r < freigegeben.length; r++) {
                 var nr = freigegeben[r];
                 var ds = csvDaten.datensaetze[nr - 1];
-                var werte = [String(nr), bereinigeExportWert(kompletteAdresse(ds))];
+                var werte = [String(nr)];
                 for (i = 0; i < exportFelder.length; i++) {
                     var feld = exportFelder[i];
-                    var wert = wertAusDatensatz(mapping, ds, feld);
-
-                    if (feld == "Straße" && wert == "" && mapping["Strasse"]) {
-                        var altMap = {};
-                        var key;
-                        for (key in mapping) if (mapping.hasOwnProperty(key)) altMap[key] = mapping[key];
-                        altMap["Straße"] = mapping["Strasse"];
-                        wert = wertAusDatensatz(altMap, ds, "Straße");
-                    }
-
+                    var wert = exportWert(ds, feld);
                     werte.push(bereinigeExportWert(wert));
                 }
                 zeilen.push(werte.join("\t"));
@@ -1942,7 +1957,7 @@
             return {
                 datei: ziel,
                 datensaetze: freigegeben.length,
-                felder: exportFelder.length + 2
+                felder: exportFelder.length + 1
             };
         }
 
