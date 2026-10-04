@@ -112,6 +112,19 @@
             dlg.layout.layout(true);
         };
 
+        var zeileSollAuflage = formular.add("group");
+        zeileSollAuflage.orientation = "row";
+        var labelSollAuflage = zeileSollAuflage.add("statictext", undefined, "Soll-Auflage (optional):");
+        labelSollAuflage.preferredSize.width = 160;
+        var feldSollAuflage = zeileSollAuflage.add("edittext", undefined, "");
+        feldSollAuflage.characters = 30;
+
+        var zeileSollHinweis = formular.add("group");
+        zeileSollHinweis.orientation = "row";
+        var abstandSollHinweis = zeileSollHinweis.add("statictext", undefined, "");
+        abstandSollHinweis.preferredSize.width = 160;
+        var sollHinweis = zeileSollHinweis.add("statictext", undefined, "Leer lassen = Auflage wird automatisch aus den freigegebenen Datensätzen ermittelt.");
+
         var buttons = dlg.add("group");
         buttons.alignment = "right";
         var zurueck = buttons.add("button", undefined, "Zurück");
@@ -123,7 +136,14 @@
             if (versandartText == "Sonstiges" && feldSonstiges.text != "") {
                 versandartText = versandartText + ": " + feldSonstiges.text;
             }
-            alert("Auftragsnummer: " + feldAuftrag.text + "\nKunde: " + feldKunde.text + "\nBezeichnung: " + feldBezeichnung.text + "\nProduktionsdatum: " + feldProduktionsdatum.text + "\nVersanddatum: " + feldVersanddatum.text + "\nVersandart: " + versandartText);
+            if (feldSollAuflage.text != "") {
+                if (!/^\d+$/.test(feldSollAuflage.text) || parseInt(feldSollAuflage.text, 10) <= 0) {
+                    alert("Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben.");
+                    feldSollAuflage.active = true;
+                    return;
+                }
+            }
+            alert("Auftragsnummer: " + feldAuftrag.text + "\nKunde: " + feldKunde.text + "\nBezeichnung: " + feldBezeichnung.text + "\nProduktionsdatum: " + feldProduktionsdatum.text + "\nVersanddatum: " + feldVersanddatum.text + "\nVersandart: " + versandartText + "\nSoll-Auflage: " + (feldSollAuflage.text != "" ? feldSollAuflage.text : "nicht angegeben"));
         };
         dlg.center();
         var ergebnis = dlg.show();
