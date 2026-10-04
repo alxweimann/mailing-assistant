@@ -809,20 +809,124 @@
     }
 
     function xlsxDatenLesen(datei,blatt) {
-        var ausgabe=temporareDateiPfad("mailing_assistant_xlsx"),vb="On Error Resume Next\r\n";
-        vb+="Dim xl,wb,ws,stm,ur,firstRow,firstCol,lastRow,lastCol,r,col,v\r\nSet xl=CreateObject(\"Excel.Application\")\r\nxl.Visible=False\r\n";
-        vb+="Set wb=xl.Workbooks.Open(\"" + vbScriptText(datei.fsName) + "\",False,True)\r\nIf Err.Number<>0 Then WScript.Quit 1\r\n";
-        vb+="Set ws=wb.Worksheets(\"" + vbScriptText(blatt) + "\")\r\nSet ur=ws.UsedRange\r\nfirstRow=ur.Row:firstCol=ur.Column:lastRow=firstRow+ur.Rows.Count-1:lastCol=firstCol+ur.Columns.Count-1\r\n";
-        vb+="ws.UsedRange.Columns.AutoFit\r\nSet stm=CreateObject(\"ADODB.Stream\")\r\nstm.Type=2\r\nstm.Charset=\"utf-8\"\r\nstm.Open\r\n";
-        vb+="For r=firstRow To lastRow\r\n For col=firstCol To lastCol\r\n v=ws.Cells(r,col).Text\r\n";
-        vb+=" Dim n, ch, hx\r\n stm.WriteText \"~\"\r\n For n=1 To Len(v)\r\n  ch=AscW(Mid(v,n,1)):If ch<0 Then ch=ch+65536\r\n  hx=Hex(ch):hx=String(4-Len(hx),\"0\") & hx:stm.WriteText hx\r\n Next\r\n";
-        vb+=" If col<lastCol Then stm.WriteText \"|\"\r\n Next\r\n stm.WriteText vbCrLf\r\nNext\r\n";
-        vb+="stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\nstm.Close\r\nwb.Close False\r\nxl.Quit\r\n";
-        app.doScript(vb,ScriptLanguage.VISUAL_BASIC);
-        var f=File(ausgabe);if(!f.exists)throw new Error("Das Excel-Tabellenblatt konnte nicht gelesen werden.");f.encoding="UTF-8";if(!f.open("r"))throw new Error("Die Excel-Daten konnten nicht gelesen werden.");
-        var t=f.read();f.close();try{f.remove();}catch(e){}var z=t.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n"),m=[],i,j,q;
-        for(i=0;i<z.length;i++){if(z[i]=="")continue;q=z[i].split("|");for(j=0;j<q.length;j++)q[j]=xlsxZellwertDekodieren(q[j]);m.push(q);}
-        if(!m.length)throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine Daten.");var first=-1;for(i=0;i<m.length;i++){for(j=0;j<m[i].length;j++){if(trimText(m[i][j])!=""){first=i;break;}}if(first>=0)break;}if(first<0)throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine bef\u00fcllten Zellen.");if(first>0)m=m.slice(first);return{rohzeilen:m};
+        var fortschritt = new Window("palette", "Mailing-Assistant \u2013 Daten werden eingelesen");
+        fortschritt.orientation = "column";
+        fortschritt.alignChildren = ["fill", "top"];
+        fortschritt.spacing = 10;
+        fortschritt.margins = 18;
+
+        var statusText = fortschritt.add("statictext", undefined, "Excel-Datei wird ge\u00f6ffnet und vorbereitet ...");
+        statusText.preferredSize.width = 430;
+
+        var balken = fortschritt.add("progressbar", undefined, 0, 100);
+        balken.preferredSize = [430, 18];
+        balken.value = 2;
+
+        var detail = fortschritt.add("statictext", undefined, "Bitte warten ...");
+        detail.preferredSize.width = 430;
+
+        fortschritt.center();
+        fortschritt.show();
+        try { fortschritt.update(); } catch (e0) {}
+
+        var ausgabe = temporareDateiPfad("mailing_assistant_xlsx");
+        var vb = "On Error Resume Next\r\n";
+        vb += "Dim xl,wb,ws,stm,ur,firstRow,firstCol,lastRow,lastCol,r,col,v\r\nSet xl=CreateObject(\"Excel.Application\")\r\nxl.Visible=False\r\n";
+        vb += "Set wb=xl.Workbooks.Open(\"" + vbScriptText(datei.fsName) + "\",False,True)\r\nIf Err.Number<>0 Then WScript.Quit 1\r\n";
+        vb += "Set ws=wb.Worksheets(\"" + vbScriptText(blatt) + "\")\r\nSet ur=ws.UsedRange\r\nfirstRow=ur.Row:firstCol=ur.Column:lastRow=firstRow+ur.Rows.Count-1:lastCol=firstCol+ur.Columns.Count-1\r\n";
+        vb += "ws.UsedRange.Columns.AutoFit\r\nSet stm=CreateObject(\"ADODB.Stream\")\r\nstm.Type=2\r\nstm.Charset=\"utf-8\"\r\nstm.Open\r\n";
+        vb += "For r=firstRow To lastRow\r\n For col=firstCol To lastCol\r\n v=ws.Cells(r,col).Text\r\n";
+        vb += " Dim n, ch, hx\r\n stm.WriteText \"~\"\r\n For n=1 To Len(v)\r\n  ch=AscW(Mid(v,n,1)):If ch<0 Then ch=ch+65536\r\n  hx=Hex(ch):hx=String(4-Len(hx),\"0\") & hx:stm.WriteText hx\r\n Next\r\n";
+        vb += " If col<lastCol Then stm.WriteText \"|\"\r\n Next\r\n stm.WriteText vbCrLf\r\nNext\r\n";
+        vb += "stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\nstm.Close\r\nwb.Close False\r\nxl.Quit\r\n";
+
+        try {
+            app.doScript(vb, ScriptLanguage.VISUAL_BASIC);
+
+            balken.value = 10;
+            statusText.text = "Excel-Daten wurden vorbereitet. Datens\u00e4tze werden eingelesen ...";
+            detail.text = "Fortschritt wird ermittelt ...";
+            try { fortschritt.update(); } catch (e1) {}
+
+            var f = File(ausgabe);
+            if (!f.exists) throw new Error("Das Excel-Tabellenblatt konnte nicht gelesen werden.");
+            f.encoding = "UTF-8";
+            if (!f.open("r")) throw new Error("Die Excel-Daten konnten nicht gelesen werden.");
+            var t = f.read();
+            f.close();
+            try { f.remove(); } catch (e2) {}
+
+            var z = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+            var m = [];
+            var i;
+            var j;
+            var q;
+            var gesamt = 0;
+
+            for (i = 0; i < z.length; i++) if (z[i] != "") gesamt++;
+            if (gesamt < 1) gesamt = 1;
+
+            var verarbeitet = 0;
+            var startZeit = new Date().getTime();
+            var letzteAktualisierung = -1;
+
+            for (i = 0; i < z.length; i++) {
+                if (z[i] == "") continue;
+
+                q = z[i].split("|");
+                for (j = 0; j < q.length; j++) q[j] = xlsxZellwertDekodieren(q[j]);
+                m.push(q);
+                verarbeitet++;
+
+                var prozent = Math.round((verarbeitet / gesamt) * 100);
+                if (prozent != letzteAktualisierung || verarbeitet == gesamt) {
+                    letzteAktualisierung = prozent;
+                    balken.value = 10 + Math.round(prozent * 0.9);
+                    statusText.text = "Datens\u00e4tze eingelesen: " + verarbeitet + " von " + gesamt + " (" + prozent + " %)";
+
+                    var vergangenMs = new Date().getTime() - startZeit;
+                    var restText = "";
+                    if (verarbeitet > 0 && vergangenMs > 300) {
+                        var msProDatensatz = vergangenMs / verarbeitet;
+                        var restSekunden = Math.round(((gesamt - verarbeitet) * msProDatensatz) / 1000);
+                        if (restSekunden < 60) restText = "Gesch\u00e4tzte Restzeit: ca. " + restSekunden + " Sek.";
+                        else restText = "Gesch\u00e4tzte Restzeit: ca. " + Math.ceil(restSekunden / 60) + " Min.";
+                    } else {
+                        restText = "Gesch\u00e4tzte Restzeit wird berechnet ...";
+                    }
+                    detail.text = restText;
+                    try { fortschritt.update(); } catch (e3) {}
+                }
+            }
+
+            if (!m.length) throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine Daten.");
+
+            var first = -1;
+            for (i = 0; i < m.length; i++) {
+                for (j = 0; j < m[i].length; j++) {
+                    if (trimText(m[i][j]) != "") {
+                        first = i;
+                        break;
+                    }
+                }
+                if (first >= 0) break;
+            }
+
+            if (first < 0) throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine bef\u00fcllten Zellen.");
+            if (first > 0) m = m.slice(first);
+
+            balken.value = 100;
+            statusText.text = "Einlesen abgeschlossen: " + m.length + " Zeilen verarbeitet.";
+            detail.text = "100 %";
+            try { fortschritt.update(); } catch (e4) {}
+            $.sleep(250);
+            fortschritt.close();
+
+            return {rohzeilen:m};
+        } catch (fehler) {
+            try { fortschritt.close(); } catch (e5) {}
+            throw fehler;
+        }
     }
 
     function xlsxZeileIstWahrscheinlichUeberschrift(zeile){
