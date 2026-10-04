@@ -1485,9 +1485,9 @@
             );
 
 
-        // Die Spaltenzuordnung kommt im nächsten Schritt.
+        // Spaltenzuordnung ist der nächste Schritt.
         weiter.enabled =
-            false;
+            true;
 
 
         zurueck.onClick =
@@ -1507,6 +1507,230 @@
         if (ergebnis == 1) {
 
             zeigeDatenquelle();
+        }
+
+        if (ergebnis == 2) {
+
+            zeigeSpaltenzuordnung(
+                datei,
+                csvDaten
+            );
+        }
+    }
+
+
+    // ============================================================
+    // SPALTENZUORDNUNG
+    // ============================================================
+
+    function zeigeSpaltenzuordnung(
+        datei,
+        csvDaten
+    ) {
+
+        var dlg = new Window(
+            "dialog",
+            "Mailing-Assistant – Spaltenzuordnung"
+        );
+
+        dlg.orientation =
+            "column";
+
+        dlg.alignChildren = [
+            "fill",
+            "top"
+        ];
+
+        dlg.spacing = 12;
+
+        dlg.margins = 20;
+
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "Spaltenzuordnung"
+        );
+
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "Ordne den internen Mailing-Feldern die passenden CSV-Spalten zu."
+        );
+
+
+        var bereich =
+            dlg.add("panel");
+
+        bereich.orientation =
+            "column";
+
+        bereich.alignChildren = [
+            "fill",
+            "top"
+        ];
+
+        bereich.margins =
+            15;
+
+        bereich.spacing =
+            8;
+
+
+        var interneFelder = [
+            "Anrede",
+            "Titel",
+            "Vorname",
+            "Nachname",
+            "Firma",
+            "Straße",
+            "Hausnummer",
+            "PLZ",
+            "Ort",
+            "Land",
+            "Adresszusatz",
+            "E-Mail",
+            "Telefon",
+            "Kundennummer",
+            "Selektionsmerkmal",
+            "Sonstiges"
+        ];
+
+
+        var csvSpalten = [
+            "— nicht zugeordnet —"
+        ];
+
+        var i;
+        var j;
+
+
+        for (
+            i = 0;
+            i < csvDaten.spalten.length;
+            i++
+        ) {
+
+            csvSpalten.push(
+                csvDaten.spalten[i]
+            );
+        }
+
+
+        var zuordnungen = [];
+
+
+        for (
+            i = 0;
+            i < interneFelder.length;
+            i++
+        ) {
+
+            var zeile =
+                bereich.add("group");
+
+            zeile.orientation =
+                "row";
+
+            zeile.alignChildren = [
+                "center",
+                "center"
+            ];
+
+
+            var label =
+                zeile.add(
+                    "statictext",
+                    undefined,
+                    interneFelder[i] + ":"
+                );
+
+
+            label.preferredSize.width =
+                150;
+
+
+            var auswahl =
+                zeile.add(
+                    "dropdownlist",
+                    undefined,
+                    csvSpalten
+                );
+
+
+            auswahl.preferredSize.width =
+                300;
+
+
+            auswahl.selection =
+                0;
+
+
+            zuordnungen.push(
+                auswahl
+            );
+        }
+
+
+        var hinweis =
+            dlg.add(
+                "statictext",
+                undefined,
+                "Noch keine Zuordnung wird gespeichert oder verarbeitet."
+            );
+
+
+        var buttons =
+            dlg.add("group");
+
+        buttons.alignment =
+            "right";
+
+
+        var zurueck =
+            buttons.add(
+                "button",
+                undefined,
+                "Zurück"
+            );
+
+
+        var weiter =
+            buttons.add(
+                "button",
+                undefined,
+                "Weiter"
+            );
+
+
+        zurueck.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
+
+        weiter.onClick =
+            function () {
+
+                dlg.close(2);
+            };
+
+
+        dlg.center();
+
+
+        var ergebnis =
+            dlg.show();
+
+
+        if (ergebnis == 1) {
+
+            zeigeCsvVorschau(
+                datei,
+                csvDaten
+            );
         }
     }
 
