@@ -593,17 +593,16 @@
             var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
 
             if (fehlerfelder[feld]) {
-                var hinweis = zeile.add("group");
+                var hinweis = zeile.add("edittext", undefined, fehlerfelder[feld], {readonly:true, borderless:true});
                 hinweis.preferredSize = [95, 22];
-                hinweis.hinweisText = fehlerfelder[feld];
-                hinweis.onDraw = function () {
-                    var g = this.graphics;
-                    try {
-                        var pen = g.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                        var font = ScriptUI.newFont("dialog", "REGULAR", 12);
-                        g.drawString(this.hinweisText, pen, 0, 15, font);
-                    } catch (e) {}
-                };
+                hinweis.characters = 11;
+                try {
+                    hinweis.graphics.foregroundColor = hinweis.graphics.newPen(
+                        ScriptUIGraphics.PenType.SOLID_COLOR,
+                        [1, 0, 0],
+                        1
+                    );
+                } catch (e) {}
             } else {
                 var platzhalter = zeile.add("statictext", undefined, "");
                 platzhalter.preferredSize.width = 95;
