@@ -1942,10 +1942,23 @@
                     feld =
                         sichtbareFelder[j];
 
-                    csvIndex =
-                        csvDaten.spalten.indexOf(
+                    csvIndex = -1;
+
+                    for (
+                        var s = 0;
+                        s < csvDaten.spalten.length;
+                        s++
+                    ) {
+
+                        if (
+                            csvDaten.spalten[s] ==
                             mapping[feld]
-                        );
+                        ) {
+
+                            csvIndex = s;
+                            break;
+                        }
+                    }
 
 
                     var wert =
