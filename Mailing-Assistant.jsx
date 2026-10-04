@@ -112,6 +112,48 @@
         return fundstellen;
     }
 
+    function mappingWert(csvDaten, mapping, datensatz, feld) {
+        var index = mappingSpaltenindex(csvDaten, mapping, feld);
+        if (index < 0 || index >= datensatz.length) return "";
+        return trimText(datensatz[index]);
+    }
+
+    function postalischePflichtfelderPruefen(csvDaten, mapping) {
+        var fundstellen = [];
+        var i;
+        for (i = 0; i < csvDaten.datensaetze.length; i++) {
+            var datensatz = csvDaten.datensaetze[i];
+            var firma = mappingWert(csvDaten, mapping, datensatz, "Firma");
+            var vorname = mappingWert(csvDaten, mapping, datensatz, "Vorname");
+            var nachname = mappingWert(csvDaten, mapping, datensatz, "Nachname");
+            var strasse = mappingWert(csvDaten, mapping, datensatz, "Stra\u00dfe");
+            var hausnummer = mappingWert(csvDaten, mapping, datensatz, "Hausnummer");
+            var postfach = mappingWert(csvDaten, mapping, datensatz, "Postfach");
+            var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
+            var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
+            var hinweise = [];
+
+            if (firma == "" && vorname == "" && nachname == "") hinweise.push("Empf\u00e4ngername/Firma fehlt.");
+            if (postfach == "") {
+                if (strasse == "") hinweise.push("Stra\u00dfe oder Postfach fehlt.");
+                else if (hausnummer == "") hinweise.push("Hausnummer fehlt.");
+            }
+            if (plz == "") hinweise.push("PLZ fehlt.");
+            if (ort == "") hinweise.push("Ort fehlt.");
+
+            if (hinweise.length > 0) {
+                fundstellen.push({
+                    datensatz: i + 1,
+                    empfaenger: verbindeTeile([firma, vorname, nachname]),
+                    anschrift: postfach != "" ? "Postfach " + postfach : verbindeTeile([strasse, hausnummer]),
+                    ort: verbindeTeile([plz, ort]),
+                    hinweis: hinweise.join(" ")
+                });
+            }
+        }
+        return fundstellen;
+    }
+
     function verbindeTeile(teile) {
         var ergebnis = [];
         var i;
@@ -376,7 +418,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Spaltenzuordnung");
         dlg.add("statictext", undefined, "Ordne jeder Kundenspalte ein Mailing-Feld zu. Nicht ben\u00f6tigte Spalten bleiben auf \u201eNicht verwenden\u201c.");
 
-        var interneFelder = ["Anrede", "Titel", "Vorname", "Nachname", "Firma", "Stra\u00dfe", "Hausnummer", "PLZ", "Ort", "Land", "Adresszusatz", "E-Mail", "Telefon", "Kundennummer", "Selektionsmerkmal", "Sonstiges"];
+        var interneFelder = ["Anrede", "Titel", "Vorname", "Nachname", "Firma", "Stra\u00dfe", "Hausnummer", "Postfach", "PLZ", "Ort", "Land", "Adresszusatz", "E-Mail", "Telefon", "Kundennummer", "Selektionsmerkmal", "Sonstiges"];
         var auswahlFelder = ["Nicht verwenden"];
         var i; var j;
         for (i = 0; i < interneFelder.length; i++) auswahlFelder.push(interneFelder[i]);
@@ -397,6 +439,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
                 "firma":"Firma", "firmenname":"Firma", "unternehmen":"Firma", "company":"Firma",
                 "strasse":"Stra\u00dfe", "street":"Stra\u00dfe", "streetname":"Stra\u00dfe",
                 "hausnummer":"Hausnummer", "hausnr":"Hausnummer", "hnr":"Hausnummer", "streetnumber":"Hausnummer",
+                "postfach":"Postfach", "postbox":"Postfach", "pobox":"Postfach",
                 "plz":"PLZ", "postleitzahl":"PLZ", "zipcode":"PLZ", "zip":"PLZ", "postalcode":"PLZ",
                 "ort":"Ort", "stadt":"Ort", "city":"Ort",
                 "land":"Land", "country":"Land",
@@ -480,9 +523,10 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
             var person = verbindeTeile([wertAusDatensatz(datensatz, "Anrede"), wertAusDatensatz(datensatz, "Titel"), wertAusDatensatz(datensatz, "Vorname"), wertAusDatensatz(datensatz, "Nachname")]);
             var adresszusatz = wertAusDatensatz(datensatz, "Adresszusatz");
             var strasse = verbindeTeile([wertAusDatensatz(datensatz, "Stra\u00dfe"), wertAusDatensatz(datensatz, "Hausnummer")]);
+            var postfach = wertAusDatensatz(datensatz, "Postfach");
             var ort = verbindeTeile([wertAusDatensatz(datensatz, "PLZ"), wertAusDatensatz(datensatz, "Ort")]);
             var land = wertAusDatensatz(datensatz, "Land");
-            if (firma != "") zeilen.push(firma); if (person != "") zeilen.push(person); if (adresszusatz != "") zeilen.push(adresszusatz); if (strasse != "") zeilen.push(strasse); if (ort != "") zeilen.push(ort);
+            if (firma != "") zeilen.push(firma); if (person != "") zeilen.push(person); if (adresszusatz != "") zeilen.push(adresszusatz); if (postfach != "") zeilen.push("Postfach " + postfach); else if (strasse != "") zeilen.push(strasse); if (ort != "") zeilen.push(ort);
             var landKlein = land.toLowerCase(); if (land != "" && landKlein != "deutschland" && landKlein != "de" && landKlein != "germany" && landKlein != "deu") zeilen.push(land);
             return zeilen.join("\r");
         }
@@ -495,6 +539,21 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         function aktualisiereVorschau() { if (!liste.selection) { vorschau.text = ""; return; } var index = liste.selection.index; vorschau.text = postalischeAdresse(csvDaten.datensaetze[index]); }
         liste.onChange = aktualisiereVorschau; if (maximaleVorschau > 0) { liste.selection = 0; aktualisiereVorschau(); } else vorschau.text = "Keine Datens\u00e4tze vorhanden.";
         dlg.add("statictext", undefined, maximaleVorschau + " von " + csvDaten.anzahl + " Datens\u00e4tzen stehen zur Vorschau bereit.");
+        if (postalHinweise.length > 0) {
+            var postalBereich = dlg.add("panel"); postalBereich.text = "Pr\u00fcfhinweise \u2013 postalische Pflichtfelder"; postalBereich.orientation = "column"; postalBereich.alignChildren = ["fill", "top"]; postalBereich.margins = 15;
+            var postalListe = postalBereich.add("listbox", undefined, [], {numberOfColumns: 5, showHeaders: true, columnTitles: ["Datensatz", "Empf\u00e4nger", "Anschrift", "PLZ / Ort", "Hinweis"], columnWidths: [70, 150, 170, 130, 300]}); postalListe.preferredSize = [850, 180];
+            var maximalePostalPruefung = Math.min(20, postalHinweise.length); var ph; var postalEintrag;
+            for (ph = 0; ph < maximalePostalPruefung; ph++) {
+                postalEintrag = postalListe.add("item", String(postalHinweise[ph].datensatz));
+                postalEintrag.subItems[0].text = postalHinweise[ph].empfaenger == "" ? "[leer]" : postalHinweise[ph].empfaenger;
+                postalEintrag.subItems[1].text = postalHinweise[ph].anschrift == "" ? "[leer]" : postalHinweise[ph].anschrift;
+                postalEintrag.subItems[2].text = postalHinweise[ph].ort == "" ? "[leer]" : postalHinweise[ph].ort;
+                postalEintrag.subItems[3].text = postalHinweise[ph].hinweis;
+            }
+            if (postalHinweise.length > maximalePostalPruefung) dlg.add("statictext", undefined, maximalePostalPruefung + " von " + postalHinweise.length + " postalischen Pr\u00fcfhinweisen werden angezeigt.");
+            dlg.add("statictext", undefined, "Diese Datens\u00e4tze werden nur markiert; es erfolgt keine automatische Korrektur.");
+        } else dlg.add("statictext", undefined, "Keine fehlenden postalischen Pflichtfelder erkannt.");
+
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeSpaltenzuordnung(datei, csvDaten); if (ergebnis == 2) zeigeDatenbereinigung(datei, csvDaten, mapping);
@@ -504,6 +563,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         var protokoll = sichereTextbereinigungAnwenden(csvDaten);
         var problematischeZeichen = problematischeZeichenErkennen(csvDaten);
         var plzHinweise = deutschePlzPruefen(csvDaten, mapping);
+        var postalHinweise = postalischePflichtfelderPruefen(csvDaten, mapping);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenbereinigung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Sichere Textbereinigung");
@@ -512,6 +572,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         info.add("statictext", undefined, "Automatisch bereinigte Felder: " + protokoll.length);
         info.add("statictext", undefined, "Problematische/versteckte Zeichen erkannt: " + problematischeZeichen.length);
         info.add("statictext", undefined, "PLZ-Pr\u00fcfhinweise: " + plzHinweise.length);
+        info.add("statictext", undefined, "Postalische Pflichtfeld-Hinweise: " + postalHinweise.length);
         info.add("statictext", undefined, "Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
         if (protokoll.length > 0) {
             var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll \u2013 erste 20 \u00c4nderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
