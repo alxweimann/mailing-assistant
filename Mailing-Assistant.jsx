@@ -1794,44 +1794,183 @@
             neuLayouten();
         }
 
+        function exportierePrueflistePdf(mapping) {
+            var p=pruefungen(mapping);
+            var auff=auffaelligeSammelnLokal(mapping,p);
+
+            if(auff.length==0){
+                alert("Es gibt keine auff\u00e4lligen Datens\u00e4tze f\u00fcr eine Pr\u00fcfliste.");
+                return;
+            }
+
+            function dateinameTeil(text) {
+                var wert=trimText(text);
+                if(wert=="")return "";
+                wert=wert.replace(/[\\\/:*?"<>|]+/g,"_");
+                wert=wert.replace(/\s+/g,"_");
+                wert=wert.replace(/_+/g,"_");
+                return wert.replace(/^_+|_+$/g,"");
+            }
+
+            var teile=[];
+            var t=dateinameTeil(aktuellerAuftrag.auftragsnummer);if(t!="")teile.push(t);
+            t=dateinameTeil(aktuellerAuftrag.kunde);if(t!="")teile.push(t);
+            t=dateinameTeil(aktuellerAuftrag.bezeichnung);if(t!="")teile.push(t);
+            if(teile.length==0)teile.push("Mailing");
+
+            var heute=new Date();
+            var jm=heute.getMonth()+1;
+            var jt=heute.getDate();
+            if(jm<10)jm="0"+jm;
+            if(jt<10)jt="0"+jt;
+            teile.push(String(heute.getFullYear())+String(jm)+String(jt));
+            teile.push("Pruefliste");
+
+            var vorgeschlagen=File(Folder.myDocuments.fsName+"/"+teile.join("_")+".pdf");
+            var ziel=vorgeschlagen.saveDlg("Pr\u00fcfliste als PDF speichern","PDF:*.pdf");
+            if(!ziel)return;
+            if(!/\.pdf$/i.test(ziel.name))ziel=File(ziel.fsName+".pdf");
+
+            var doc=null;
+            try{
+                doc=app.documents.add(false);
+                doc.documentPreferences.pageWidth="210mm";
+                doc.documentPreferences.pageHeight="297mm";
+                doc.documentPreferences.facingPages=false;
+
+                var mm=2.834645669;
+                var links=15*mm,oben=14*mm,rechts=195*mm,unten=282*mm;
+                var zeilenProSeite=18;
+                var gesamtSeiten=Math.ceil(auff.length/zeilenProSeite);
+                if(gesamtSeiten<1)gesamtSeiten=1;
+
+                while(doc.pages.length<gesamtSeiten)doc.pages.add();
+
+                var s;
+                for(s=0;s<gesamtSeiten;s++){
+                    var page=doc.pages[s];
+                    var tf=page.textFrames.add();
+                    tf.geometricBounds=[oben,links,unten,rechts];
+
+                    var von=s*zeilenProSeite;
+                    var bis=Math.min(auff.length,von+zeilenProSeite);
+
+                    var kopf=[];
+                    kopf.push("MAILING-ASSISTANT  |  PR\u00dcFLISTE");
+                    kopf.push("");
+                    kopf.push("Auftragsnummer: "+(aktuellerAuftrag.auftragsnummer||"-"));
+                    kopf.push("Kunde: "+(aktuellerAuftrag.kunde||"-"));
+                    kopf.push("Bezeichnung: "+(aktuellerAuftrag.bezeichnung||"-"));
+                    kopf.push("Produktionsdatum: "+(aktuellerAuftrag.produktionsdatum||"-"));
+                    kopf.push("Auff\u00e4llige Datens\u00e4tze: "+auff.length);
+                    kopf.push("Seite "+(s+1)+" von "+gesamtSeiten);
+                    kopf.push("");
+                    kopf.push("Bitte pr\u00fcfen Sie die folgenden Datens\u00e4tze und vermerken Sie die gew\u00fcnschte Korrektur.");
+                    kopf.push("");
+
+                    var body=kopf.join("\r");
+                    var i;
+                    for(i=von;i<bis;i++){
+                        var nr=auff[i].datensatz;
+                        var ds=csvDaten.datensaetze[nr-1];
+                        var emp=verbindeTeile([
+                            wertAusDatensatz(mapping,ds,"Firma"),
+                            wertAusDatensatz(mapping,ds,"Vorname"),
+                            wertAusDatensatz(mapping,ds,"Nachname")
+                        ]);
+                        if(emp=="")emp="[ohne Empf\u00e4nger]";
+
+                        var strasse=wertAusDatensatz(mapping,ds,"Stra\u00dfe");
+                        var hn=wertAusDatensatz(mapping,ds,"Hausnummer");
+                        var pf=wertAusDatensatz(mapping,ds,"Postfach");
+                        var land=wertAusDatensatz(mapping,ds,"Land");
+                        var po=plzOrtAnalysieren(
+                            wertAusDatensatz(mapping,ds,"PLZ"),
+                            wertAusDatensatz(mapping,ds,"Ort"),
+                            land
+                        );
+                        var anschrift=pf!=""?postfachZeileNormalisieren(pf):strassenHausnummerAnalysieren(strasse,hn).zeile;
+
+                        body+="Datensatz "+nr+"  |  "+emp+"\r";
+                        body+=verbindeTeile([anschrift,po.zeile])+"\r";
+                        body+="Pr\u00fcfgrund: "+auff[i].gruende.join(" ")+"\r";
+                        body+="Korrektur / Bemerkung: _________________________________________________\r";
+                        body+="______________________________________________________________________\r\r";
+                    }
+
+                    tf.contents=body;
+                    tf.texts[0].pointSize=8.5;
+                    tf.texts[0].leading=11;
+
+                    try{
+                        tf.paragraphs[0].pointSize=15;
+                        tf.paragraphs[0].leading=18;
+                    }catch(e0){}
+                }
+
+                app.pdfExportPreferences.pageRange=PageRange.ALL_PAGES;
+                doc.exportFile(ExportFormat.PDF_TYPE,ziel,false);
+
+                doc.close(SaveOptions.NO);
+                doc=null;
+
+                alert("Pr\u00fcfliste wurde erstellt:\r\r"+ziel.fsName);
+            }catch(e){
+                if(doc){
+                    try{doc.close(SaveOptions.NO);}catch(e2){}
+                }
+                alert("Die Pr\u00fcfliste konnte nicht als PDF erstellt werden.\r\rFehler: "+e);
+            }
+        }
+
         function zeigeBereinigungSeite(mapping) {
             leeren();
             dlg.text="Mailing-Assistant \u2013 Datenbereinigung";
             var protokoll=sichereTextbereinigungAnwenden(csvDaten);
             var p=pruefungen(mapping);
+            var auff=auffaelligeSammelnLokal(mapping,p);
 
-            seitenContainer.add("statictext",undefined,"Sichere Textbereinigung");
-            seitenContainer.add("statictext",undefined,"Bereinigt werden nur eindeutige Formatierungsfehler: Rand-Leerzeichen, Mehrfach-Leerzeichen, Tabs und Zeilenumbr\u00fcche.");
+            seitenContainer.add("statictext",undefined,"Datenbereinigung abgeschlossen");
+            seitenContainer.add("statictext",undefined,"Der Mailing-Assistant hat die Datei gepr\u00fcft. Details werden im n\u00e4chsten Schritt bearbeitet.");
 
-            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            var info=seitenContainer.add("panel");
+            info.orientation="column";
+            info.alignChildren=["left","top"];
+            info.margins=18;
+            info.spacing=8;
+
+            info.add("statictext",undefined,"Gesamte Datens\u00e4tze: "+csvDaten.anzahl);
+            info.add("statictext",undefined,"Auff\u00e4llige Datens\u00e4tze: "+auff.length);
             info.add("statictext",undefined,"Automatisch bereinigte Felder: "+protokoll.length);
-            info.add("statictext",undefined,"Problematische/versteckte Zeichen erkannt: "+p.problem.length);
+
+            var trennung=info.add("statictext",undefined,"");
+            trennung.preferredSize.height=4;
+
             info.add("statictext",undefined,"PLZ-Pr\u00fcfhinweise: "+p.plz.length);
-            info.add("statictext",undefined,"Postalische Pflichtfeld-Hinweise: "+p.postal.length);
-            info.add("statictext",undefined,"Eindeutige Dubletten-Hinweise: "+p.dubletten.length);
-            info.add("statictext",undefined,"Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
+            info.add("statictext",undefined,"Postalische Hinweise: "+p.postal.length);
+            info.add("statictext",undefined,"Problematische/versteckte Zeichen: "+p.problem.length);
 
-            if(p.plz.length>0){
-                var plzB=seitenContainer.add("panel");plzB.text="Pr\u00fcfhinweise \u2013 deutsche PLZ";plzB.orientation="column";plzB.alignChildren=["fill","top"];plzB.margins=15;
-                var plzL=plzB.add("listbox",undefined,[],{numberOfColumns:4,showHeaders:true,columnTitles:["Datensatz","PLZ","Land","Hinweis"],columnWidths:[70,90,110,320]});plzL.preferredSize=[620,120];
-                var i,ent;for(i=0;i<Math.min(20,p.plz.length);i++){ent=plzL.add("item",String(p.plz[i].datensatz));ent.subItems[0].text=p.plz[i].plz==""?"[leer]":p.plz[i].plz;ent.subItems[1].text=p.plz[i].land==""?"[leer = DE]":p.plz[i].land;ent.subItems[2].text=p.plz[i].hinweis;}
-            }
-            if(p.postal.length>0){
-                var pb=seitenContainer.add("panel");pb.text="Pr\u00fcfhinweise \u2013 postalische Pflichtfelder";pb.orientation="column";pb.alignChildren=["fill","top"];pb.margins=15;
-                var pl=pb.add("listbox",undefined,[],{numberOfColumns:5,showHeaders:true,columnTitles:["Datensatz","Empf\u00e4nger","Anschrift","PLZ / Ort","Hinweis"],columnWidths:[70,150,170,130,300]});pl.preferredSize=[850,130];
-                var j,e;for(j=0;j<Math.min(20,p.postal.length);j++){e=pl.add("item",String(p.postal[j].datensatz));e.subItems[0].text=p.postal[j].empfaenger==""?"[leer]":p.postal[j].empfaenger;e.subItems[1].text=p.postal[j].anschrift==""?"[leer]":p.postal[j].anschrift;e.subItems[2].text=p.postal[j].ort==""?"[leer]":p.postal[j].ort;e.subItems[3].text=p.postal[j].hinweis;}
-            }
-            if(p.dubletten.length>0){
-                var db=seitenContainer.add("panel");db.text="Pr\u00fcfhinweise \u2013 eindeutige Dubletten";db.orientation="column";db.alignChildren=["fill","top"];db.margins=15;
-                var dl=db.add("listbox",undefined,[],{numberOfColumns:5,showHeaders:true,columnTitles:["Datensatz","Dublette von","Empf\u00e4nger","Anschrift","PLZ / Ort"],columnWidths:[70,90,180,190,150]});dl.preferredSize=[760,120];
-                var k,de;for(k=0;k<Math.min(20,p.dubletten.length);k++){de=dl.add("item",String(p.dubletten[k].datensatz));de.subItems[0].text=String(p.dubletten[k].original);de.subItems[1].text=p.dubletten[k].empfaenger;de.subItems[2].text=p.dubletten[k].anschrift;de.subItems[3].text=p.dubletten[k].ort;}
-            }
+            seitenContainer.add("statictext",undefined,"Die Quelldatei bleibt unver\u00e4ndert. Korrekturen gelten nur f\u00fcr diesen Mailing-Auftrag.");
 
-            var buttons=seitenContainer.add("group");buttons.alignment="right";
+            var aktionen=seitenContainer.add("panel");
+            aktionen.text="N\u00e4chster Schritt";
+            aktionen.orientation="row";
+            aktionen.alignChildren=["left","center"];
+            aktionen.margins=15;
+            aktionen.spacing=12;
+
+            var pdf=aktionen.add("button",undefined,"Pr\u00fcfliste als PDF");
+            pdf.enabled=auff.length>0;
+            var freigabe=aktionen.add("button",undefined,"Weiter zur Datensatzfreigabe");
+
+            pdf.onClick=function(){exportierePrueflistePdf(mapping);};
+            freigabe.onClick=function(){zeigeFreigabeSeite(mapping,false);};
+
+            var buttons=seitenContainer.add("group");
+            buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
-            var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeAdressSeite(mapping);};
-            weiter.onClick=function(){zeigeFreigabeSeite(mapping,false);};
+
             neuLayouten();
         }
 
