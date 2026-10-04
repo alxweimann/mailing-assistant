@@ -1010,41 +1010,32 @@
         balkenZeile.alignChildren = ["left", "center"];
         balkenZeile.spacing = 10;
 
-        var balkenFlaeche = balkenZeile.add("panel");
-        balkenFlaeche.preferredSize = [370, 20];
-        balkenFlaeche.minimumSize = [370, 20];
-        balkenFlaeche.maximumSize = [370, 20];
-        balkenFlaeche.fortschrittWert = 1;
+        var balkenTrack = balkenZeile.add("group");
+        balkenTrack.orientation = "row";
+        balkenTrack.alignChildren = ["left", "fill"];
+        balkenTrack.spacing = 0;
+        balkenTrack.preferredSize = [370, 20];
+        balkenTrack.minimumSize = [370, 20];
+        balkenTrack.maximumSize = [370, 20];
+
+        var balkenHell = balkenTrack.add("panel");
+        var balkenDunkel = balkenTrack.add("panel");
+
+        function flaecheZeichnen(element, farbe) {
+            element.onDraw = function () {
+                var g = this.graphics;
+                var b = g.newBrush(g.BrushType.SOLID_COLOR, farbe);
+                g.newPath();
+                g.rectPath(0, 0, this.size.width, this.size.height);
+                g.fillPath(b);
+            };
+        }
+
+        flaecheZeichnen(balkenHell, [0.92, 0.92, 0.92, 1]);
+        flaecheZeichnen(balkenDunkel, [0.18, 0.18, 0.18, 1]);
 
         var balkenProzent = balkenZeile.add("statictext", undefined, "1 %");
         balkenProzent.preferredSize.width = 50;
-
-        balkenFlaeche.onDraw = function () {
-            var g = this.graphics;
-            var w = this.size.width;
-            var h = this.size.height;
-            var innen = 2;
-            var anteil = this.fortschrittWert / 100;
-            var fuellBreite = Math.round((w - innen * 2) * anteil);
-
-            var hintergrund = g.newBrush(g.BrushType.SOLID_COLOR, [0.18, 0.18, 0.18, 1]);
-            var fuellung = g.newBrush(g.BrushType.SOLID_COLOR, [0.92, 0.92, 0.92, 1]);
-            var rahmen = g.newPen(g.PenType.SOLID_COLOR, [0.48, 0.48, 0.48, 1], 1);
-
-            g.newPath();
-            g.rectPath(0, 0, w, h);
-            g.fillPath(hintergrund);
-
-            if (fuellBreite > 0) {
-                g.newPath();
-                g.rectPath(innen, innen, innen + fuellBreite, h - innen);
-                g.fillPath(fuellung);
-            }
-
-            g.newPath();
-            g.rectPath(0.5, 0.5, w - 0.5, h - 0.5);
-            g.strokePath(rahmen);
-        };
 
         function balkenSetzen(prozent) {
             prozent = parseInt(prozent, 10);
@@ -1052,10 +1043,26 @@
             if (prozent < 0) prozent = 0;
             if (prozent > 100) prozent = 100;
 
-            balkenFlaeche.fortschrittWert = prozent;
+            var gesamtBreite = 370;
+            var hellBreite = Math.round((gesamtBreite * prozent) / 100);
+            var dunkelBreite = gesamtBreite - hellBreite;
+
+            if (hellBreite < 1) hellBreite = 1;
+            if (dunkelBreite < 1) dunkelBreite = 1;
+
+            balkenHell.preferredSize = [hellBreite, 20];
+            balkenHell.minimumSize = [hellBreite, 20];
+            balkenHell.maximumSize = [hellBreite, 20];
+
+            balkenDunkel.preferredSize = [dunkelBreite, 20];
+            balkenDunkel.minimumSize = [dunkelBreite, 20];
+            balkenDunkel.maximumSize = [dunkelBreite, 20];
+
             balkenProzent.text = prozent + " %";
-            try { balkenFlaeche.notify("onDraw"); } catch (e0) {}
-            try { fortschritt.update(); } catch (e1) {}
+
+            try { balkenTrack.layout.layout(true); } catch (e0) {}
+            try { fortschritt.layout.layout(true); } catch (e1) {}
+            try { fortschritt.update(); } catch (e2) {}
         }
 
         balkenSetzen(1);
