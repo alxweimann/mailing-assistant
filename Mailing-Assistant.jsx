@@ -59,6 +59,35 @@
         return protokoll;
     }
 
+    function problematischeZeichenErkennen(csvDaten) {
+        var fundstellen = [];
+        var i;
+        var j;
+        var k;
+        var wert;
+        var code;
+        var codeText;
+        for (i = 0; i < csvDaten.datensaetze.length; i++) {
+            for (j = 0; j < csvDaten.datensaetze[i].length; j++) {
+                wert = String(csvDaten.datensaetze[i][j]);
+                for (k = 0; k < wert.length; k++) {
+                    code = wert.charCodeAt(k);
+                    if ((code >= 0 && code <= 8) || code == 11 || code == 12 || (code >= 14 && code <= 31) || code == 127 || code == 8203 || code == 8204 || code == 8205 || code == 8288 || code == 65279) {
+                        codeText = code.toString(16).toUpperCase();
+                        while (codeText.length < 4) codeText = "0" + codeText;
+                        fundstellen.push({
+                            datensatz: i + 1,
+                            spalte: j < csvDaten.spalten.length ? csvDaten.spalten[j] : "Spalte " + (j + 1),
+                            zeichen: "U+" + codeText,
+                            wert: wert
+                        });
+                    }
+                }
+            }
+        }
+        return fundstellen;
+    }
+
     function verbindeTeile(teile) {
         var ergebnis = [];
         var i;
@@ -277,12 +306,14 @@
 
     function zeigeDatenbereinigung(datei, csvDaten, mapping) {
         var protokoll = sichereTextbereinigungAnwenden(csvDaten);
+        var problematischeZeichen = problematischeZeichenErkennen(csvDaten);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenbereinigung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Sichere Textbereinigung");
         dlg.add("statictext", undefined, "Bereinigt werden nur eindeutige Formatierungsfehler: Rand-Leerzeichen, Mehrfach-Leerzeichen, Tabs und Zeilenumbr\u00fcche.");
         var info = dlg.add("panel"); info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
         info.add("statictext", undefined, "Automatisch bereinigte Felder: " + protokoll.length);
+        info.add("statictext", undefined, "Problematische/versteckte Zeichen erkannt: " + problematischeZeichen.length);
         info.add("statictext", undefined, "Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
         if (protokoll.length > 0) {
             var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll \u2013 erste 20 \u00c4nderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
@@ -291,6 +322,14 @@
             for (i = 0; i < maximaleVorschau; i++) { eintrag = liste.add("item", String(protokoll[i].datensatz)); eintrag.subItems[0].text = protokoll[i].spalte; eintrag.subItems[1].text = sichtbarerBereinigungstext(protokoll[i].vorher); eintrag.subItems[2].text = sichtbarerBereinigungstext(protokoll[i].nachher); }
             if (protokoll.length > maximaleVorschau) dlg.add("statictext", undefined, maximaleVorschau + " von " + protokoll.length + " \u00c4nderungen werden angezeigt.");
         } else dlg.add("statictext", undefined, "Keine sicheren Textbereinigungen erforderlich.");
+        if (problematischeZeichen.length > 0) {
+            var pruefbereich = dlg.add("panel"); pruefbereich.text = "Pr\u00fcfhinweise \u2013 problematische/versteckte Zeichen"; pruefbereich.orientation = "column"; pruefbereich.alignChildren = ["fill", "top"]; pruefbereich.margins = 15;
+            var pruefliste = pruefbereich.add("listbox", undefined, [], {numberOfColumns: 4, showHeaders: true, columnTitles: ["Datensatz", "Spalte", "Zeichen", "Feldinhalt"], columnWidths: [70, 140, 90, 300]}); pruefliste.preferredSize = [640, 160];
+            var maximalePruefung = Math.min(20, problematischeZeichen.length); var p; var fund;
+            for (p = 0; p < maximalePruefung; p++) { fund = pruefliste.add("item", String(problematischeZeichen[p].datensatz)); fund.subItems[0].text = problematischeZeichen[p].spalte; fund.subItems[1].text = problematischeZeichen[p].zeichen; fund.subItems[2].text = problematischeZeichen[p].wert; }
+            if (problematischeZeichen.length > maximalePruefung) dlg.add("statictext", undefined, maximalePruefung + " von " + problematischeZeichen.length + " Pr\u00fcfhinweisen werden angezeigt.");
+            dlg.add("statictext", undefined, "Diese Zeichen werden nicht automatisch ver\u00e4ndert oder entfernt.");
+        } else dlg.add("statictext", undefined, "Keine problematischen oder versteckten Steuerzeichen erkannt.");
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
