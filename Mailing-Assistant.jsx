@@ -1237,7 +1237,239 @@
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1){var blaetter=xlsxTabellenblaetterLesen(datei);if(blaetter.length==1)zeigeDatenquelle();else zeigeXlsxBlattauswahl(datei,blaetter);}
     }
 
+    function zeigeDatenWizardFenster(datei, csvDaten, startMitMapping) {
+        var dlg = new Window("dialog", startMitMapping ? "Mailing-Assistant \u2013 Spaltenzuordnung" : "Mailing-Assistant \u2013 Datenvorschau");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+        function leeren() {
+            while (dlg.children.length > 0) dlg.remove(dlg.children[0]);
+        }
+
+        function neuLayouten() {
+            try {
+                dlg.layout.layout(true);
+                dlg.layout.resize();
+            } catch (e) {}
+        }
+
+        function zeigeVorschauSeite() {
+            leeren();
+            dlg.text = "Mailing-Assistant \u2013 Datenvorschau";
+
+            dlg.add("statictext", undefined, "Daten erfolgreich eingelesen");
+
+            var info = dlg.add("panel");
+            info.orientation = "column";
+            info.alignChildren = ["left", "top"];
+            info.margins = 15;
+            info.spacing = 6;
+            info.add("statictext", undefined, "Datei: " + datei.name);
+            info.add("statictext", undefined, "Datens\u00e4tze: " + csvDaten.anzahl);
+            info.add("statictext", undefined, "Spalten: " + csvDaten.spalten.length);
+
+            var vorschauBereich = dlg.add("panel");
+            vorschauBereich.text = "Vorschau \u2013 erste 10 Datens\u00e4tze";
+            vorschauBereich.orientation = "column";
+            vorschauBereich.alignChildren = ["fill", "top"];
+            vorschauBereich.margins = 15;
+
+            var spaltenbreiten = [];
+            var i;
+            for (i = 0; i < csvDaten.spalten.length; i++) spaltenbreiten.push(120);
+
+            var liste = vorschauBereich.add("listbox", undefined, [], {
+                numberOfColumns: csvDaten.spalten.length,
+                showHeaders: true,
+                columnTitles: csvDaten.spalten,
+                columnWidths: spaltenbreiten
+            });
+            liste.preferredSize = [760, 260];
+
+            var maximaleVorschau = Math.min(10, csvDaten.datensaetze.length);
+            var zeile;
+            var eintrag;
+            var spalte;
+            var wert;
+
+            for (i = 0; i < maximaleVorschau; i++) {
+                zeile = csvDaten.datensaetze[i];
+                wert = zeile.length > 0 ? zeile[0] : "";
+                eintrag = liste.add("item", wert);
+                for (spalte = 1; spalte < csvDaten.spalten.length; spalte++) {
+                    wert = spalte < zeile.length ? zeile[spalte] : "";
+                    eintrag.subItems[spalte - 1].text = wert;
+                }
+            }
+
+            dlg.add("statictext", undefined, maximaleVorschau + " von " + csvDaten.anzahl + " Datens\u00e4tzen werden angezeigt.");
+
+            var buttons = dlg.add("group");
+            buttons.alignment = "right";
+            var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+            var weiter = buttons.add("button", undefined, "Weiter");
+
+            zurueck.onClick = function () {
+                dlg.close(1);
+            };
+
+            weiter.onClick = function () {
+                zeigeMappingSeite();
+            };
+
+            neuLayouten();
+        }
+
+        function zeigeMappingSeite() {
+            leeren();
+            dlg.text = "Mailing-Assistant \u2013 Spaltenzuordnung";
+
+            dlg.add("statictext", undefined, "Spaltenzuordnung");
+            dlg.add("statictext", undefined, "Ordne jeder Kundenspalte ein Mailing-Feld zu. Nicht ben\u00f6tigte Spalten bleiben auf \u201eNicht verwenden\u201c.");
+
+            var interneFelder = ["Anrede", "Titel", "Vorname", "Nachname", "Firma", "Stra\u00dfe", "Hausnummer", "Postfach", "PLZ", "Ort", "Land", "Adresszusatz", "E-Mail", "Telefon", "Kundennummer", "Selektionsmerkmal", "Sonstiges"];
+            var auswahlFelder = ["Nicht verwenden"];
+            var i;
+            var j;
+            for (i = 0; i < interneFelder.length; i++) auswahlFelder.push(interneFelder[i]);
+
+            function normalisiereSpaltenname(text) {
+                var wert = trimText(text).toLowerCase();
+                wert = wert.replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/g, "ue").replace(/\u00df/g, "ss");
+                return wert.replace(/[^a-z0-9]/g, "");
+            }
+
+            function vorgeschlagenesFeld(spaltenname) {
+                var name = normalisiereSpaltenname(spaltenname);
+                var aliases = {
+                    "anrede":"Anrede", "salutation":"Anrede",
+                    "titel":"Titel", "title":"Titel",
+                    "vorname":"Vorname", "firstname":"Vorname", "first":"Vorname",
+                    "nachname":"Nachname", "lastname":"Nachname", "surname":"Nachname", "familienname":"Nachname",
+                    "firma":"Firma", "firmenname":"Firma", "unternehmen":"Firma", "company":"Firma",
+                    "strasse":"Stra\u00dfe", "street":"Stra\u00dfe", "streetname":"Stra\u00dfe",
+                    "hausnummer":"Hausnummer", "hausnr":"Hausnummer", "hnr":"Hausnummer", "streetnumber":"Hausnummer",
+                    "postfach":"Postfach", "postbox":"Postfach", "pobox":"Postfach",
+                    "plz":"PLZ", "postleitzahl":"PLZ", "zipcode":"PLZ", "zip":"PLZ", "postalcode":"PLZ",
+                    "ort":"Ort", "stadt":"Ort", "city":"Ort",
+                    "land":"Land", "country":"Land",
+                    "adresszusatz":"Adresszusatz", "adresszusatz1":"Adresszusatz", "zusatz":"Adresszusatz", "address2":"Adresszusatz",
+                    "email":"E-Mail", "emailadresse":"E-Mail", "mail":"E-Mail",
+                    "telefon":"Telefon", "telefonnummer":"Telefon", "phone":"Telefon", "tel":"Telefon",
+                    "kundennummer":"Kundennummer", "kundennr":"Kundennummer", "kundenummer":"Kundennummer", "customerid":"Kundennummer",
+                    "selektionsmerkmal":"Selektionsmerkmal", "selektion":"Selektionsmerkmal",
+                    "sonstiges":"Sonstiges"
+                };
+                return aliases[name] || null;
+            }
+
+            var kopf = dlg.add("group");
+            kopf.orientation = "row";
+            var kopfQuelle = kopf.add("statictext", undefined, "Kundenspalte");
+            kopfQuelle.preferredSize.width = 260;
+            kopf.add("statictext", undefined, "Mailing-Feld");
+
+            var bereich = dlg.add("panel");
+            bereich.orientation = "column";
+            bereich.alignChildren = ["fill", "top"];
+            bereich.margins = 15;
+            bereich.spacing = 6;
+
+            var zuordnungen = [];
+            var verwendet = {};
+
+            for (i = 0; i < csvDaten.spalten.length; i++) {
+                var zeile = bereich.add("group");
+                zeile.orientation = "row";
+                zeile.alignChildren = ["center", "center"];
+
+                var label = zeile.add("statictext", undefined, csvDaten.spalten[i]);
+                label.preferredSize.width = 260;
+
+                var auswahl = zeile.add("dropdownlist", undefined, auswahlFelder);
+                auswahl.preferredSize.width = 220;
+                auswahl.selection = 0;
+
+                var vorschlag = vorgeschlagenesFeld(csvDaten.spalten[i]);
+                if (vorschlag && !verwendet[vorschlag]) {
+                    for (j = 1; j < auswahlFelder.length; j++) {
+                        if (auswahlFelder[j] == vorschlag) {
+                            auswahl.selection = j;
+                            verwendet[vorschlag] = true;
+                            break;
+                        }
+                    }
+                }
+
+                zuordnungen.push(auswahl);
+            }
+
+            function pruefeDoppelteZuordnung(geaendert) {
+                if (!geaendert.selection || geaendert.selection.index == 0) return;
+                var feld = geaendert.selection.text;
+                var k;
+
+                for (k = 0; k < zuordnungen.length; k++) {
+                    if (zuordnungen[k] != geaendert && zuordnungen[k].selection && zuordnungen[k].selection.text == feld) {
+                        alert("Das Mailing-Feld \u201e" + feld + "\u201c ist bereits der Kundenspalte \u201e" + csvDaten.spalten[k] + "\u201c zugeordnet.\n\nJedes Mailing-Feld kann nur einmal verwendet werden.");
+                        geaendert.selection = 0;
+                        return;
+                    }
+                }
+            }
+
+            for (i = 0; i < zuordnungen.length; i++) {
+                zuordnungen[i].onChange = function () {
+                    pruefeDoppelteZuordnung(this);
+                };
+            }
+
+            dlg.add("statictext", undefined, "Vorschl\u00e4ge werden nur anhand eindeutiger Spaltennamen vorbelegt. Du kannst jede Zuordnung \u00e4ndern.");
+
+            var buttons = dlg.add("group");
+            buttons.alignment = "right";
+            var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+            var weiter = buttons.add("button", undefined, "Weiter");
+
+            zurueck.onClick = function () {
+                zeigeVorschauSeite();
+            };
+
+            weiter.onClick = function () {
+                var mapping = {};
+                var k;
+
+                for (k = 0; k < interneFelder.length; k++) mapping[interneFelder[k]] = "\u2014 nicht zugeordnet \u2014";
+                for (k = 0; k < zuordnungen.length; k++) {
+                    if (zuordnungen[k].selection && zuordnungen[k].selection.index > 0) {
+                        mapping[zuordnungen[k].selection.text] = csvDaten.spalten[k];
+                    }
+                }
+
+                dlg.__mapping = mapping;
+                dlg.close(2);
+            };
+
+            neuLayouten();
+        }
+
+        if (startMitMapping) zeigeMappingSeite();
+        else zeigeVorschauSeite();
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1) {
+            zeigeDatenquelle();
+        } else if (ergebnis == 2 && dlg.__mapping) {
+            zeigeAdressvorschau(datei, csvDaten, dlg.__mapping);
+        }
+    }
+
     function zeigeCsvVorschau(datei, csvDaten) {
+        return zeigeDatenWizardFenster(datei, csvDaten, false);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenvorschau");
         dlg.orientation = "column";     function zeigeXlsxBlattauswahl(datei,blaetter){
         var dlg=new Window("dialog","Mailing-Assistant \u2013 Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
@@ -1271,6 +1503,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
     }
 
     function zeigeSpaltenzuordnung(datei, csvDaten) {
+        return zeigeDatenWizardFenster(datei, csvDaten, true);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Spaltenzuordnung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Spaltenzuordnung");
