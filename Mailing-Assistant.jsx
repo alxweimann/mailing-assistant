@@ -738,13 +738,16 @@
         function validierungsBildDatei(typ) {
             var fehltB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAABj0lEQVR4nO3WP0scYRDH8e8FwVZIsFE5hKf4BaJVbIRUKTy0CRI7QRBSSLTLK4hgZfAg6XwFB4FoYbBKLzYJQZhiClET1Ag2ggjxT3Eql4055Nggd84HFnZ5hpln59ndZyGEEEII4d5wqdeldZd+u/TmFvG7Lj35x9imS0/zn2XreJC5ngHWgPZkNp9nIZd2YjH+lG1+EfiazE7vYjL3TdvViUurwBAw6tIi0Af8At4Dz4EjoJzMFjI5Si5VgB7gMzCRzE5qA1z6CHQB6y4BzCSzD//nlprH9ZOfzErAMvAqmRWADeATsAckqgsz5dJIJscwUAJEdcHGs0WS2UvgBzCQzArR+Kq2OmP9wGPg2eVn6NClMjAGrNTEvU1m2wAuLQE3bsDhb/WaXwQ6gBOXCsDV8SUTd1Bzfgw8zHOCraxe87eBn0B3MjvPodZZDjlaSvZvp9Y3YAt451KnS49cmnTpdYO19oG+y7coUKf5yewMeAF0At+pbsCDQKXBWnPALHDq0nSDOUIIIYQQQtO4AIinbOnTR4fGAAAAAElFTkSuQmCC";
             var ungueltigB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAAB40lEQVR4nO3Xu2sUURTH8U80hVpoY2UULQY8RVJpOkvBB6KiaQRBFEQLtbKwSKVilSKFjRb+BT4LHwiWVmohItziIpEYEySVCL4SsdgJbIKPdXezcXW+1Rzu3N/v8JvLYS4VFRUVFRUdJEeM5YitS91Hp+ntlFGO6MVXDGAUD4qURn7y7hvsL1J6WtZjGJqr/xU6Fn6R0gx6ynL7H+7d1PaG/gLmhZ8jZrC+SGmqrEfxoUhpuKynMIKj2IB7OFKk9DlH9OMaNuMxpvG2SOlcI9p1PVxHH57kCDiNs+pO/u+8uoVlTezZjZ0ItRFyOEcsxy3cVfsoV3ComYaKlIYwgcEipZ4ipcv16+30WmqaGTvni5TGIUfcRj+2YA0uFinN4k6OuN+2LufTSa9FpZmTP133/BErsQ4TZRhzvG6lsV/QSa9FZWH4n7Cirl7boM4k+sqRMMfGFrS/tejVFSwM/wWO5YhVOWIHDjSo8wzvMZwjVueIvdjVgvY7DOSInh+sNeLVFSwM/4xaKJM4iRuNiJS/kQexB+Pl3pv40qT2JVzAbI441YTX/02OeJgjjv9rXu2kbZesHHECL/Fc7WRuU7sPtJ1Oei0m7bzhPsJVDOIV9hUpTbRRf6m8KioqKioqKrqZ7wchwxpvNbfmAAAAAElFTkSuQmCC";
-            var pfad = Folder.temp.fsName + "/mailing_assistant_hint_" + (typ == "ung\u00fcltig" ? "ungueltig" : "fehlt") + ".png";
+            var pruefenB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAAB+ElEQVR4nO3XO2gUURTG8d/GFOIjah1BBAVtxMLYprGxs1SrIILYhkVFJAg2mkawNT5AhAiigikUBQsLQVPYJBaKNhokosHgC0GPxd7AOCTrRuNuHvcPA/eec+4953wz3Jkhk8lkMplZENwKhoL2IIKekr8tGAg+JP+OFpW69Aj2JOE7W13LfKKtSXk24VWFN03Kt3AI7qdj4VowHrwPzkTh5hRiBoPJ4EGyPw2qpf0Gg4E0vp6OmqnrRVAJetP4WzAaHJympvPBleBt8C44FyxrhiZNIzUawZFgbdCdmu0txfwMDgWrCva64qf5sWC4MO8LRoKdwYqUbzzYW8r3I+gJVqfYj8GB/6dEC0iNPi7ZqsHrUszdadbOSvxgefAp2FVa0xfcK+W7UYq5Glz62z7nG+2F8XDJ9wSdQUeFyWQbmYOcW7ESd6I2rxSul6XY56X5BNbPQQ3zgqL40UD89wb3rfcin/JtqzD6h30aqWnBUhSpq+TrwljhqZ+JCawr2TbXiX+Gr9jdUIWLmN/ETy/cNUE3juJsA3s8xP5gS1p7HNtnCq7wBf1qZ/y+oCPYEBwOTvxDLwuO4rFzUe3Ps5rsFzQmfj824hE+4yZu11tQ4WQwrib2ZYxhCKdmV/4iIH1ZnG51HUuNZv3hZqYhi5/JZDKZTBP4BTCg1JhOA9zCAAAAAElFTkSuQmCC";
+            var dateiTyp = typ == "ung\u00fcltig" ? "ungueltig" : (typ == "pr\u00fcfen" ? "pruefen" : "fehlt");
+            var bildInhalt = typ == "ung\u00fcltig" ? ungueltigB64 : (typ == "pr\u00fcfen" ? pruefenB64 : fehltB64);
+            var pfad = Folder.temp.fsName + "/mailing_assistant_hint_" + dateiTyp + ".png";
             var bild = File(pfad);
 
             if (!bild.exists) {
                 bild.encoding = "BINARY";
                 if (!bild.open("w")) return null;
-                bild.write(base64ZuBinary(typ == "ung\u00fcltig" ? ungueltigB64 : fehltB64));
+                bild.write(base64ZuBinary(bildInhalt));
                 bild.close();
             }
 
@@ -1498,12 +1501,15 @@
         function validierungsBildDatei(typ) {
             var fehltB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAABj0lEQVR4nO3WP0scYRDH8e8FwVZIsFE5hKf4BaJVbIRUKTy0CRI7QRBSSLTLK4hgZfAg6XwFB4FoYbBKLzYJQZhiClET1Ag2ggjxT3Eql4055Nggd84HFnZ5hpln59ndZyGEEEII4d5wqdeldZd+u/TmFvG7Lj35x9imS0/zn2XreJC5ngHWgPZkNp9nIZd2YjH+lG1+EfiazE7vYjL3TdvViUurwBAw6tIi0Af8At4Dz4EjoJzMFjI5Si5VgB7gMzCRzE5qA1z6CHQB6y4BzCSzD//nlprH9ZOfzErAMvAqmRWADeATsAckqgsz5dJIJscwUAJEdcHGs0WS2UvgBzCQzArR+Kq2OmP9wGPg2eVn6NClMjAGrNTEvU1m2wAuLQE3bsDhb/WaXwQ6gBOXCsDV8SUTd1Bzfgw8zHOCraxe87eBn0B3MjvPodZZDjlaSvZvp9Y3YAt451KnS49cmnTpdYO19oG+y7coUKf5yewMeAF0At+pbsCDQKXBWnPALHDq0nSDOUIIIYQQQtO4AIinbOnTR4fGAAAAAElFTkSuQmCC";
             var ungueltigB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAAB40lEQVR4nO3Xu2sUURTH8U80hVpoY2UULQY8RVJpOkvBB6KiaQRBFEQLtbKwSKVilSKFjRb+BT4LHwiWVmohItziIpEYEySVCL4SsdgJbIKPdXezcXW+1Rzu3N/v8JvLYS4VFRUVFRUdJEeM5YitS91Hp+ntlFGO6MVXDGAUD4qURn7y7hvsL1J6WtZjGJqr/xU6Fn6R0gx6ynL7H+7d1PaG/gLmhZ8jZrC+SGmqrEfxoUhpuKynMIKj2IB7OFKk9DlH9OMaNuMxpvG2SOlcI9p1PVxHH57kCDiNs+pO/u+8uoVlTezZjZ0ItRFyOEcsxy3cVfsoV3ComYaKlIYwgcEipZ4ipcv16+30WmqaGTvni5TGIUfcRj+2YA0uFinN4k6OuN+2LufTSa9FpZmTP133/BErsQ4TZRhzvG6lsV/QSa9FZWH4n7Cirl7boM4k+sqRMMfGFrS/tejVFSwM/wWO5YhVOWIHDjSo8wzvMZwjVueIvdjVgvY7DOSInh+sNeLVFSwM/4xaKJM4iRuNiJS/kQexB+Pl3pv40qT2JVzAbI441YTX/02OeJgjjv9rXu2kbZesHHECL/Fc7WRuU7sPtJ1Oei0m7bzhPsJVDOIV9hUpTbRRf6m8KioqKioqKrqZ7wchwxpvNbfmAAAAAElFTkSuQmCC";
-            var pfad = Folder.temp.fsName + "/mailing_assistant_hint_" + (typ == "ung\u00fcltig" ? "ungueltig" : "fehlt") + ".png";
+            var pruefenB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAAB+ElEQVR4nO3XO2gUURTG8d/GFOIjah1BBAVtxMLYprGxs1SrIILYhkVFJAg2mkawNT5AhAiigikUBQsLQVPYJBaKNhokosHgC0GPxd7AOCTrRuNuHvcPA/eec+4953wz3Jkhk8lkMplZENwKhoL2IIKekr8tGAg+JP+OFpW69Aj2JOE7W13LfKKtSXk24VWFN03Kt3AI7qdj4VowHrwPzkTh5hRiBoPJ4EGyPw2qpf0Gg4E0vp6OmqnrRVAJetP4WzAaHJympvPBleBt8C44FyxrhiZNIzUawZFgbdCdmu0txfwMDgWrCva64qf5sWC4MO8LRoKdwYqUbzzYW8r3I+gJVqfYj8GB/6dEC0iNPi7ZqsHrUszdadbOSvxgefAp2FVa0xfcK+W7UYq5Glz62z7nG+2F8XDJ9wSdQUeFyWQbmYOcW7ESd6I2rxSul6XY56X5BNbPQQ3zgqL40UD89wb3rfcin/JtqzD6h30aqWnBUhSpq+TrwljhqZ+JCawr2TbXiX+Gr9jdUIWLmN/ETy/cNUE3juJsA3s8xP5gS1p7HNtnCq7wBf1qZ/y+oCPYEBwOTvxDLwuO4rFzUe3Ps5rsFzQmfj824hE+4yZu11tQ4WQwrib2ZYxhCKdmV/4iIH1ZnG51HUuNZv3hZqYhi5/JZDKZTBP4BTCg1JhOA9zCAAAAAElFTkSuQmCC";
+            var dateiTyp = typ == "ung\u00fcltig" ? "ungueltig" : (typ == "pr\u00fcfen" ? "pruefen" : "fehlt");
+            var bildInhalt = typ == "ung\u00fcltig" ? ungueltigB64 : (typ == "pr\u00fcfen" ? pruefenB64 : fehltB64);
+            var pfad = Folder.temp.fsName + "/mailing_assistant_hint_" + dateiTyp + ".png";
             var bild = File(pfad);
             if (!bild.exists) {
                 bild.encoding = "BINARY";
                 if (!bild.open("w")) return null;
-                bild.write(base64ZuBinary(typ == "ung\u00fcltig" ? ungueltigB64 : fehltB64));
+                bild.write(base64ZuBinary(bildInhalt));
                 bild.close();
             }
             return bild;
