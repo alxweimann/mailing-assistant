@@ -1854,10 +1854,21 @@
             }
 
             var basis = datei && datei.name ? datei.name.replace(/\.[^.]+$/, "") : "Mailing";
+            var heute = new Date();
+            var jahr = heute.getFullYear();
+            var monat = heute.getMonth() + 1;
+            var tag = heute.getDate();
+            if (monat < 10) monat = "0" + monat;
+            if (tag < 10) tag = "0" + tag;
+            var datumsCode = String(jahr) + String(monat) + String(tag);
+
+            basis = basis.replace(/[\\\/:*?"<>|]+/g, "_");
+            var vorgeschlagenerName = basis + "_" + datumsCode + "_InDesign-Daten.txt";
+
             var ziel = File.saveDialog(
                 "InDesign-Datenquelle speichern",
                 "Textdatei:*.txt",
-                Folder.myDocuments.fsName + "/" + basis + "_InDesign_Datenquelle.txt"
+                Folder.myDocuments.fsName + "/" + vorgeschlagenerName
             );
             if (!ziel) return null;
 
