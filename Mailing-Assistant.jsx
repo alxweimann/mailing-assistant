@@ -1460,7 +1460,8 @@
                 problem: problematischeZeichenErkennen(csvDaten),
                 plz: deutschePlzPruefen(csvDaten, mapping),
                 postal: postalischePflichtfelderPruefen(csvDaten, mapping),
-                dubletten: eindeutigeDublettenPruefen(csvDaten, mapping)
+                // Dubletten werden bewusst erst nach Bereinigung und Freigabe gepr\u00fcft.
+                dubletten: []
             };
         }
 
@@ -1918,8 +1919,130 @@
             zurueck.onClick=function(){zeigeFreigabeUebersichtSeite(mapping);};
             weiter.onClick=function(){
                 if(offen.length>0){zeigeFreigabeSeite(mapping,true);return;}
-                csvDaten.freigegebeneDatensatznummern=frei;csvDaten.ausgeschlosseneDatensatznummern=aus;zeigeMailingSeite(mapping);
+                csvDaten.freigegebeneDatensatznummern=frei;
+                csvDaten.ausgeschlosseneDatensatznummern=aus;
+                zeigeDublettenPruefungSeite(mapping);
             };
+            neuLayouten();
+        }
+
+        function zeigeDublettenPruefungSeite(mapping) {
+            leeren();
+            dlg.text="Mailing-Assistant \u2013 Dublettenpr\u00fcfung";
+
+            var status=csvDaten.freigabestatus||{};
+            var ausgeschlossen={};
+            var i;
+            for(i=1;i<=csvDaten.anzahl;i++) {
+                if((status[i]||"\u00dcbernehmen")=="Ausschlie\u00dfen") ausgeschlossen[i]=true;
+            }
+
+            var alle=eindeutigeDublettenPruefen(csvDaten,mapping);
+            var dubletten=[];
+            for(i=0;i<alle.length;i++) {
+                if(ausgeschlossen[alle[i].datensatz]||ausgeschlossen[alle[i].original]) continue;
+                dubletten.push(alle[i]);
+            }
+
+            seitenContainer.add("statictext",undefined,"Dublettenpr\u00fcfung");
+            seitenContainer.add("statictext",undefined,"Letzte Pr\u00fcfinstanz nach Bereinigung und manueller Korrektur.");
+
+            var info=seitenContainer.add("panel");
+            info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            info.add("statictext",undefined,"Gefundene Dubletten: "+dubletten.length);
+
+            if(dubletten.length==0) {
+                seitenContainer.add("statictext",undefined,"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
+                var buttonsLeer=seitenContainer.add("group");buttonsLeer.alignment="right";
+                var zurueckLeer=buttonsLeer.add("button",undefined,"Zur\u00fcck");
+                var weiterLeer=buttonsLeer.add("button",undefined,"Weiter zur Mailing-Verarbeitung");
+                zurueckLeer.onClick=function(){zeigeFinaleFreigabeSeite(mapping);};
+                weiterLeer.onClick=function(){
+                    var frei=[],aus=[],j;
+                    for(j=1;j<=csvDaten.anzahl;j++){
+                        var w=(csvDaten.freigabestatus||{})[j]||"\u00dcbernehmen";
+                        if(w=="Ausschlie\u00dfen")aus.push(j);else if(w=="\u00dcbernehmen")frei.push(j);
+                    }
+                    csvDaten.freigegebeneDatensatznummern=frei;
+                    csvDaten.ausgeschlosseneDatensatznummern=aus;
+                    zeigeMailingSeite(mapping);
+                };
+                neuLayouten();
+                return;
+            }
+
+            var kopf=seitenContainer.add("group");kopf.orientation="row";
+            var k1=kopf.add("statictext",undefined,"Datensatz");k1.preferredSize.width=70;
+            var k2=kopf.add("statictext",undefined,"Dublette von");k2.preferredSize.width=80;
+            var k3=kopf.add("statictext",undefined,"Empf\u00e4nger");k3.preferredSize.width=190;
+            var k4=kopf.add("statictext",undefined,"Anschrift");k4.preferredSize.width=250;
+            var k5=kopf.add("statictext",undefined,"Status");k5.preferredSize.width=120;
+
+            var panel=seitenContainer.add("panel");
+            panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=12;panel.spacing=5;
+
+            if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
+            var auswahl=[];
+
+            for(i=0;i<dubletten.length;i++){
+                var d=dubletten[i];
+                var row=panel.add("group");row.orientation="row";row.alignChildren=["left","center"];
+                var t1=row.add("statictext",undefined,String(d.datensatz));t1.preferredSize.width=70;
+                var t2=row.add("statictext",undefined,String(d.original));t2.preferredSize.width=80;
+                var t3=row.add("statictext",undefined,d.empfaenger||"");t3.preferredSize.width=190;
+                var t4=row.add("statictext",undefined,verbindeTeile([d.anschrift,d.ort]));t4.preferredSize.width=250;
+                var dd=row.add("dropdownlist",undefined,["Pr\u00fcfen","\u00dcbernehmen","Ausschlie\u00dfen"]);dd.preferredSize.width=120;
+                var alt=csvDaten.dublettenstatus[d.datensatz]||"Pr\u00fcfen";
+                dd.selection=alt=="\u00dcbernehmen"?1:(alt=="Ausschlie\u00dfen"?2:0);
+                auswahl.push({datensatz:d.datensatz,dropdown:dd});
+            }
+
+            var hinweis=seitenContainer.add("statictext",undefined,"Jede gefundene Dublette muss bewusst als \u201e\u00dcbernehmen\u201c oder \u201eAusschlie\u00dfen\u201c entschieden werden.");
+            hinweis.characters=95;
+
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
+            var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
+            var weiter=buttons.add("button",undefined,"Weiter");
+
+            zurueck.onClick=function(){
+                var j;
+                for(j=0;j<auswahl.length;j++)csvDaten.dublettenstatus[auswahl[j].datensatz]=auswahl[j].dropdown.selection?auswahl[j].dropdown.selection.text:"Pr\u00fcfen";
+                zeigeFinaleFreigabeSeite(mapping);
+            };
+
+            weiter.onClick=function(){
+                var j,offen=[];
+                for(j=0;j<auswahl.length;j++){
+                    var entscheidung=auswahl[j].dropdown.selection?auswahl[j].dropdown.selection.text:"Pr\u00fcfen";
+                    csvDaten.dublettenstatus[auswahl[j].datensatz]=entscheidung;
+                    if(entscheidung=="Pr\u00fcfen")offen.push(auswahl[j].datensatz);
+                }
+                if(offen.length>0){
+                    letzteNachricht="Dubletten noch offen: Datensatz "+offen.join(", ")+".";
+                    zeigeDublettenPruefungSeite(mapping);
+                    return;
+                }
+
+                if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
+                for(j=0;j<auswahl.length;j++){
+                    var nr=auswahl[j].datensatz;
+                    var entscheidung=csvDaten.dublettenstatus[nr];
+                    if(entscheidung=="Ausschlie\u00dfen")csvDaten.freigabestatus[nr]="Ausschlie\u00dfen";
+                    else if(entscheidung=="\u00dcbernehmen")csvDaten.freigabestatus[nr]="\u00dcbernehmen";
+                }
+
+                var frei=[],aus=[],n;
+                for(n=1;n<=csvDaten.anzahl;n++){
+                    var w=csvDaten.freigabestatus[n]||"\u00dcbernehmen";
+                    if(w=="Ausschlie\u00dfen")aus.push(n);
+                    else if(w=="\u00dcbernehmen")frei.push(n);
+                }
+                csvDaten.freigegebeneDatensatznummern=frei;
+                csvDaten.ausgeschlosseneDatensatznummern=aus;
+                zeigeMailingSeite(mapping);
+            };
+
+            if(letzteNachricht!=""){zeigeNachricht(letzteNachricht);letzteNachricht="";}
             neuLayouten();
         }
 
