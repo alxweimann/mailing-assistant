@@ -1812,28 +1812,8 @@
                 return null;
             }
 
-            var felder = ["Anrede","Titel","Vorname","Nachname","Firma","Adresszusatz","Straße","Hausnummer","Postfach","PLZ","Ort","Land","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
-            var exportFelder = [];
+            var exportFelder = ["Anrede","Titel","Vorname","Nachname","Firma","Adresszusatz","Straße","Hausnummer","Postfach","PLZ","Ort","Land","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
             var i;
-            for (i = 0; i < felder.length; i++) {
-                var feldName = felder[i];
-                var index = mappingSpaltenindex(csvDaten, mapping, feldName);
-
-                if (feldName == "Straße" && index < 0 && mapping["Strasse"]) {
-                    var altMapping = {};
-                    var mk;
-                    for (mk in mapping) if (mapping.hasOwnProperty(mk)) altMapping[mk] = mapping[mk];
-                    altMapping["Straße"] = mapping["Strasse"];
-                    index = mappingSpaltenindex(csvDaten, altMapping, "Straße");
-                }
-
-                if (index >= 0) exportFelder.push(feldName);
-            }
-
-            if (exportFelder.length == 0) {
-                letzteNachricht = "Es sind keine Mailing-Felder für den Export zugeordnet.";
-                return null;
-            }
 
             function bereinigeExportWert(wert) {
                 wert = wert === null || wert === undefined ? "" : String(wert);
@@ -1861,6 +1841,7 @@
                 for (i = 0; i < exportFelder.length; i++) {
                     var feld = exportFelder[i];
                     var wert = wertAusDatensatz(mapping, ds, feld);
+
                     if (feld == "Straße" && wert == "" && mapping["Strasse"]) {
                         var altMap = {};
                         var key;
@@ -1868,6 +1849,7 @@
                         altMap["Straße"] = mapping["Strasse"];
                         wert = wertAusDatensatz(altMap, ds, "Straße");
                     }
+
                     werte.push(bereinigeExportWert(wert));
                 }
                 zeilen.push(werte.join("\t"));
