@@ -1492,7 +1492,7 @@
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1){var blaetter=xlsxTabellenblaetterLesen(datei);if(blaetter.length==1)zeigeDatenquelle();else zeigeXlsxBlattauswahl(datei,blaetter);}
     }
 
-    function zeigeDatenWizardFenster(datei, csvDaten, startMitMapping) {
+    function zeigeDatenWizardFenster(datei, csvDaten, startMitMapping, startSeite, wiederaufnahmeMapping) {
         var dlg = new Window("dialog", startMitMapping ? "Mailing-Assistant \u2013 Spaltenzuordnung" : "Mailing-Assistant \u2013 Datenvorschau");
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
@@ -1505,7 +1505,7 @@
         seitenHost.alignment = ["fill", "fill"];
 
         var seitenContainer = null;
-        var aktuellesMapping = null;
+        var aktuellesMapping = wiederaufnahmeMapping || null;
         var letzteNachricht = "";
 
         function leeren() {
@@ -1973,7 +1973,7 @@
             pdf.enabled=auff.length>0;
             var freigabe=aktionen.add("button",undefined,"Weiter zur Datensatzfreigabe");
 
-            pdf.onClick=function(){exportierePrueflistePdf(mapping);};
+            pdf.onClick=function(){ aktuellesMapping=mapping; dlg.close(7); };
             freigabe.onClick=function(){zeigeFreigabeSeite(mapping,false);};
 
             var buttons=seitenContainer.add("group");
@@ -2941,10 +2941,20 @@
             neuLayouten();
         }
 
-        if(startMitMapping)zeigeMappingSeite(aktuellesMapping);else zeigeVorschauSeite();
+        if(startSeite=="bereinigung" && aktuellesMapping) zeigeBereinigungSeite(aktuellesMapping);
+        else if(startMitMapping) zeigeMappingSeite(aktuellesMapping);
+        else zeigeVorschauSeite();
+
         dlg.center();
         var ergebnis=dlg.show();
-        if(ergebnis==1)zeigeDatenquelle();
+
+        if(ergebnis==1){
+            zeigeDatenquelle();
+        }else if(ergebnis==7){
+            var mappingFuerPdf=aktuellesMapping;
+            exportierePrueflistePdf(mappingFuerPdf);
+            zeigeDatenWizardFenster(datei,csvDaten,true,"bereinigung",mappingFuerPdf);
+        }
     }
 
     function zeigeCsvVorschau(datei, csvDaten) {
