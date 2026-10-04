@@ -1948,38 +1948,35 @@
                 dubletten.push(alle[i]);
             }
 
-            function datensatzVergleichstext(nr) {
+            function datensatzVergleichstext(nr, andererNr) {
                 var ds=csvDaten.datensaetze[nr-1];
-                var firma=wertAusDatensatz(mapping,ds,"Firma");
-                var person=verbindeTeile([
-                    wertAusDatensatz(mapping,ds,"Anrede"),
-                    wertAusDatensatz(mapping,ds,"Titel"),
-                    wertAusDatensatz(mapping,ds,"Vorname"),
-                    wertAusDatensatz(mapping,ds,"Nachname")
-                ]);
-                var empfaenger=firma!=""?(person!=""?firma+" / "+person:firma):person;
-                if(empfaenger=="")empfaenger="[ohne Empf\u00e4nger]";
+                var anderer=csvDaten.datensaetze[andererNr-1];
 
-                var postfach=wertAusDatensatz(mapping,ds,"Postfach");
-                var strassenAnalyse=strassenHausnummerAnalysieren(
-                    wertAusDatensatz(mapping,ds,"Stra\u00dfe"),
-                    wertAusDatensatz(mapping,ds,"Hausnummer")
-                );
-                var anschrift=postfach!=""?postfachZeileNormalisieren(postfach):strassenAnalyse.zeile;
-
-                var land=wertAusDatensatz(mapping,ds,"Land");
-                var plzOrtAnalyse=plzOrtAnalysieren(
-                    wertAusDatensatz(mapping,ds,"PLZ"),
-                    wertAusDatensatz(mapping,ds,"Ort"),
-                    land
-                );
-
-                var zeilen=[
-                    "Empf\u00e4nger: "+empfaenger,
-                    "Anschrift: "+anschrift,
-                    "PLZ / Ort: "+plzOrtAnalyse.zeile,
-                    "Land: "+(land!=""?land:"Deutschland")
+                var felder=[
+                    "Firma","Anrede","Titel","Vorname","Nachname","Adresszusatz",
+                    "Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land",
+                    "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
                 ];
+
+                function anzeigeVergleich(wert) {
+                    return trimText(wert).toLowerCase().replace(/\s+/g," ");
+                }
+
+                var zeilen=[];
+                var i;
+                for(i=0;i<felder.length;i++){
+                    var feld=felder[i];
+                    var wert=wertAusDatensatz(mapping,ds,feld);
+                    var andererWert=wertAusDatensatz(mapping,anderer,feld);
+
+                    // Komplett leere Felder auf beiden Seiten brauchen wir nicht anzuzeigen.
+                    if(wert==""&&andererWert=="")continue;
+
+                    var abweichend=anzeigeVergleich(wert)!=anzeigeVergleich(andererWert);
+                    var label=feld=="Stra\u00dfe"?"Stra\u00dfe":feld;
+                    zeilen.push((abweichend?"\u2260 ":"  ")+label+": "+(wert!=""?wert:"[leer]"));
+                }
+
                 return zeilen.join("\r\n");
             }
 
@@ -2035,16 +2032,16 @@
                 links.orientation="column";
                 links.alignChildren=["fill","top"];
                 links.margins=10;
-                var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original),{multiline:true,readonly:true});
-                linksText.preferredSize=[320,88];
+                var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original,d.datensatz),{multiline:true,readonly:true});
+                linksText.preferredSize=[320,155];
 
                 var rechts=vergleich.add("panel");
                 rechts.text="Datensatz "+d.datensatz;
                 rechts.orientation="column";
                 rechts.alignChildren=["fill","top"];
                 rechts.margins=10;
-                var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz),{multiline:true,readonly:true});
-                rechtsText.preferredSize=[320,88];
+                var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz,d.original),{multiline:true,readonly:true});
+                rechtsText.preferredSize=[320,155];
 
                 var entscheidung=paar.add("group");
                 entscheidung.orientation="row";
@@ -2073,6 +2070,8 @@
                 });
             }
 
+            var markerHinweis=seitenContainer.add("statictext",undefined,"\u2260 kennzeichnet Felder, deren Originalwerte voneinander abweichen.");
+            markerHinweis.characters=100;
             var hinweis=seitenContainer.add("statictext",undefined,"Bei \u201elinks behalten\u201c oder \u201erechts behalten\u201c wird der jeweils andere Datensatz ausgeschlossen. \u201eBeide behalten\u201c l\u00e4sst beide Datens\u00e4tze in der Mailing-Auflage.");
             hinweis.characters=100;
 
