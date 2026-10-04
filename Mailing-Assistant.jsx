@@ -667,14 +667,16 @@
     function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen, nurOffene) {
         var auffaellig = auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
         var vorhandenerStatus = csvDaten.freigabestatus || {};
-        if (nurOffene) {
-            var offene = [];
-            var oi;
-            for (oi = 0; oi < auffaellig.length; oi++) {
-                if ((vorhandenerStatus[auffaellig[oi].datensatz] || "Pr\u00fcfen") == "Pr\u00fcfen") offene.push(auffaellig[oi]);
-            }
-            auffaellig = offene;
+
+        var sichtbar = [];
+        var oi;
+        for (oi = 0; oi < auffaellig.length; oi++) {
+            var aktuellerStatus = vorhandenerStatus[auffaellig[oi].datensatz] || "Pr\u00fcfen";
+            if (aktuellerStatus == "Ausschlie\u00dfen") continue;
+            if (nurOffene && aktuellerStatus != "Pr\u00fcfen") continue;
+            sichtbar.push(auffaellig[oi]);
         }
+        auffaellig = sichtbar;
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datensatzfreigabe");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Datensatzfreigabe");
