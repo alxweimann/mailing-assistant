@@ -27,6 +27,17 @@
         return wert;
     }
 
+    function sichtbarerBereinigungstext(text) {
+        if (text === null || text === undefined) return "[]";
+        var wert = String(text);
+        wert = wert.replace(/\u00A0/g, "\u00b7");
+        wert = wert.replace(/\t/g, "[TAB]");
+        wert = wert.replace(/\r\n/g, "[ZEILENUMBRUCH]");
+        wert = wert.replace(/[\r\n]/g, "[ZEILENUMBRUCH]");
+        wert = wert.replace(/ /g, "\u00b7");
+        return "[" + wert + "]";
+    }
+
     function sichereTextbereinigungAnwenden(csvDaten) {
         if (csvDaten.bereinigungsprotokoll) return csvDaten.bereinigungsprotokoll;
         var protokoll = [];
@@ -277,7 +288,7 @@
             var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll \u2013 erste 20 \u00c4nderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
             var liste = bereich.add("listbox", undefined, [], {numberOfColumns: 4, showHeaders: true, columnTitles: ["Datensatz", "Spalte", "Vorher", "Nachher"], columnWidths: [70, 140, 220, 220]}); liste.preferredSize = [680, 260];
             var maximaleVorschau = Math.min(20, protokoll.length); var i; var eintrag;
-            for (i = 0; i < maximaleVorschau; i++) { eintrag = liste.add("item", String(protokoll[i].datensatz)); eintrag.subItems[0].text = protokoll[i].spalte; eintrag.subItems[1].text = protokoll[i].vorher.replace(/[\r\n\t]/g, " "); eintrag.subItems[2].text = protokoll[i].nachher; }
+            for (i = 0; i < maximaleVorschau; i++) { eintrag = liste.add("item", String(protokoll[i].datensatz)); eintrag.subItems[0].text = protokoll[i].spalte; eintrag.subItems[1].text = sichtbarerBereinigungstext(protokoll[i].vorher); eintrag.subItems[2].text = sichtbarerBereinigungstext(protokoll[i].nachher); }
             if (protokoll.length > maximaleVorschau) dlg.add("statictext", undefined, maximaleVorschau + " von " + protokoll.length + " \u00c4nderungen werden angezeigt.");
         } else dlg.add("statictext", undefined, "Keine sicheren Textbereinigungen erforderlich.");
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
