@@ -594,14 +594,19 @@
 
             if (fehlerfelder[feld]) {
                 var hinweis = zeile.add("statictext", undefined, fehlerfelder[feld]);
-                hinweis.preferredSize.width = 95;
+                hinweis.preferredSize = [95, 22];
                 hinweis.onDraw = function () {
                     var g = this.graphics;
                     try {
                         var pen = g.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                        g.drawString(this.text, pen, 0, 0);
+                        var mass = g.measureString(this.text);
+                        var y = Math.max(0, Math.round((this.size.height - mass[1]) / 2));
+                        g.drawString(this.text, pen, 0, y);
                     } catch (e) {
-                        try { g.drawOSControl(); } catch (e2) {}
+                        try {
+                            this.graphics.foregroundColor = this.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
+                            this.graphics.drawOSControl();
+                        } catch (e2) {}
                     }
                 };
             } else {
