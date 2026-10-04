@@ -231,15 +231,15 @@
             if (landNorm == "" || landNorm == "de" || landNorm == "deu" || landNorm == "germany") landNorm = "deutschland";
 
             var empfaenger = verbindeTeile([firma, vorname, nachname]);
-            var anschrift = postfach != "" ? "Postfach " + postfach : verbindeTeile([strasse, hausnummer]);
+            var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
+            var anschrift = postfach != "" ? "Postfach " + postfach : strassenAnalyse.zeile;
             var schluesselTeile = [
                 dublettenTextNormalisieren(firma),
                 dublettenTextNormalisieren(vorname),
                 dublettenTextNormalisieren(nachname),
                 dublettenTextNormalisieren(adresszusatz),
                 dublettenTextNormalisieren(postfach),
-                dublettenTextNormalisieren(strasse),
-                dublettenTextNormalisieren(hausnummer),
+                dublettenTextNormalisieren(strassenAnalyse.zeile),
                 dublettenTextNormalisieren(plz),
                 dublettenTextNormalisieren(ort),
                 landNorm
