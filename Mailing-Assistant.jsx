@@ -962,8 +962,9 @@
         scriptDatei.close();
 
         try {
-            var cmd = 'cmd.exe /c start "" /b cscript.exe //nologo "' + scriptPfad + '"';
-            system.callSystem(cmd);
+            var launcher = "Dim sh\r\nSet sh=CreateObject(\"WScript.Shell\")\r\n";
+            launcher += "sh.Run \"cscript.exe //nologo \"\"\"" + vbScriptText(scriptPfad) + "\"\"\"\",0,False\r\n";
+            app.doScript(launcher, ScriptLanguage.VISUAL_BASIC);
 
             var startZeit = new Date().getTime();
             var timeoutMs = 60 * 60 * 1000;
