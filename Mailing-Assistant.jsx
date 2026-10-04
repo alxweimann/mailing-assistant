@@ -92,21 +92,21 @@
 
     function deutschePlzPruefen(csvDaten, mapping) {
         var fundstellen = [];
-        var plzIndex = mappingSpaltenindex(csvDaten, mapping, "PLZ");
-        var landIndex = mappingSpaltenindex(csvDaten, mapping, "Land");
-        if (plzIndex < 0) return fundstellen;
         var i;
-        var plz;
-        var land;
-        var landKlein;
-        var istDeutschland;
         for (i = 0; i < csvDaten.datensaetze.length; i++) {
-            plz = plzIndex < csvDaten.datensaetze[i].length ? trimText(csvDaten.datensaetze[i][plzIndex]) : "";
-            land = landIndex >= 0 && landIndex < csvDaten.datensaetze[i].length ? trimText(csvDaten.datensaetze[i][landIndex]) : "";
-            landKlein = land.toLowerCase();
-            istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
-            if (istDeutschland && !/^\d{5}$/.test(plz)) {
-                fundstellen.push({datensatz: i + 1, plz: plz, land: land, hinweis: "Deutsche PLZ muss aus genau 5 Ziffern bestehen."});
+            var datensatz = csvDaten.datensaetze[i];
+            var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
+            var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
+            var land = mappingWert(csvDaten, mapping, datensatz, "Land");
+            var analyse = plzOrtAnalysieren(plz, ort, land);
+
+            if (analyse.ungueltigeDePlz) {
+                fundstellen.push({
+                    datensatz: i + 1,
+                    plz: analyse.plz,
+                    land: land,
+                    hinweis: "Deutsche PLZ muss aus genau 5 Ziffern bestehen."
+                });
             }
         }
         return fundstellen;
@@ -177,6 +177,67 @@
         return wert == "" ? "Postfach" : "Postfach " + wert;
     }
 
+    function plzOrtAnalysieren(plz, ort, land) {
+        plz = trimText(plz);
+        ort = trimText(ort);
+        land = trimText(land);
+
+        var landKlein = land.toLowerCase();
+        var istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
+
+        var ergebnis = {
+            plz: "",
+            ort: "",
+            zeile: "",
+            plzVorhanden: false,
+            ortVorhanden: false,
+            ungueltigeDePlz: false,
+            konflikt: false,
+            hinweis: ""
+        };
+
+        function norm(text) {
+            return trimText(text).toLowerCase().replace(/\s+/g, " ");
+        }
+
+        function zerlegeKombiniert(text) {
+            text = trimText(text);
+            var m = text.match(/^(\d{4,6})\s+(.+)$/);
+            return m ? {plz: trimText(m[1]), ort: trimText(m[2])} : null;
+        }
+
+        var plzKombi = zerlegeKombiniert(plz);
+        var ortKombi = zerlegeKombiniert(ort);
+
+        var plzCode = plzKombi ? plzKombi.plz : plz;
+        var ortAusPlz = plzKombi ? plzKombi.ort : "";
+
+        var ortCode = ortKombi ? ortKombi.plz : "";
+        var ortName = ortKombi ? ortKombi.ort : ort;
+
+        if (plzCode != "" && ortCode != "" && norm(plzCode) != norm(ortCode)) {
+            ergebnis.konflikt = true;
+            ergebnis.hinweis = "PLZ widerspr\u00fcchlich: PLZ-Feld enth\u00e4lt " + plzCode +
+                ", Ort-Feld enth\u00e4lt " + ortCode + ".";
+        }
+
+        if (ortAusPlz != "" && ortName != "" && norm(ortAusPlz) != norm(ortName)) {
+            ergebnis.konflikt = true;
+            if (ergebnis.hinweis != "") ergebnis.hinweis += " ";
+            ergebnis.hinweis += "Ort widerspr\u00fcchlich: PLZ-Feld enth\u00e4lt " + ortAusPlz +
+                ", Ort-Feld enth\u00e4lt " + ortName + ".";
+        }
+
+        ergebnis.plz = plzCode != "" ? plzCode : ortCode;
+        ergebnis.ort = ortName != "" ? ortName : ortAusPlz;
+        ergebnis.plzVorhanden = ergebnis.plz != "";
+        ergebnis.ortVorhanden = ergebnis.ort != "";
+        ergebnis.ungueltigeDePlz = istDeutschland && ergebnis.plzVorhanden && !/^\d{5}$/.test(ergebnis.plz);
+        ergebnis.zeile = verbindeTeile([ergebnis.plz, ergebnis.ort]);
+
+        return ergebnis;
+    }
+
     function postalischePflichtfelderPruefen(csvDaten, mapping) {
         var fundstellen = [];
         var i;
@@ -190,8 +251,10 @@
             var postfach = mappingWert(csvDaten, mapping, datensatz, "Postfach");
             var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
             var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
+            var land = mappingWert(csvDaten, mapping, datensatz, "Land");
             var hinweise = [];
             var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
+            var plzOrtAnalyse = plzOrtAnalysieren(plz, ort, land);
 
             if (firma == "" && vorname == "" && nachname == "") hinweise.push("Empf\u00e4ngername/Firma fehlt.");
             if (postfach == "") {
@@ -199,15 +262,16 @@
                 else if (!strassenAnalyse.hausnummerVorhanden) hinweise.push("Hausnummer fehlt.");
                 if (strassenAnalyse.konflikt) hinweise.push(strassenAnalyse.hinweis);
             }
-            if (plz == "") hinweise.push("PLZ fehlt.");
-            if (ort == "") hinweise.push("Ort fehlt.");
+            if (!plzOrtAnalyse.plzVorhanden) hinweise.push("PLZ fehlt.");
+            if (!plzOrtAnalyse.ortVorhanden) hinweise.push("Ort fehlt.");
+            if (plzOrtAnalyse.konflikt) hinweise.push(plzOrtAnalyse.hinweis);
 
             if (hinweise.length > 0) {
                 fundstellen.push({
                     datensatz: i + 1,
                     empfaenger: verbindeTeile([firma, vorname, nachname]),
                     anschrift: postfach != "" ? postfachZeileNormalisieren(postfach) : strassenAnalyse.zeile,
-                    ort: verbindeTeile([plz, ort]),
+                    ort: plzOrtAnalyse.zeile,
                     hinweis: hinweise.join(" ")
                 });
             }
@@ -1603,8 +1667,13 @@
                 );
                 var strasse=strassenAnalyse.zeile;
                 var postfach=wertAusDatensatz(mapping,datensatz,"Postfach");
-                var ort=verbindeTeile([wertAusDatensatz(mapping,datensatz,"PLZ"),wertAusDatensatz(mapping,datensatz,"Ort")]);
                 var land=wertAusDatensatz(mapping,datensatz,"Land");
+                var plzOrtAnalyse=plzOrtAnalysieren(
+                    wertAusDatensatz(mapping,datensatz,"PLZ"),
+                    wertAusDatensatz(mapping,datensatz,"Ort"),
+                    land
+                );
+                var ort=plzOrtAnalyse.zeile;
                 if(firma!="")zeilen.push(firma); if(person!="")zeilen.push(person); if(zusatz!="")zeilen.push(zusatz);
                 if(postfach!="")zeilen.push(postfachZeileNormalisieren(postfach)); else if(strasse!="")zeilen.push(strasse);
                 if(ort!="")zeilen.push(ort);
@@ -1767,8 +1836,11 @@
                     else if(!strassenAnalyse.hausnummerVorhanden)fehler["Hausnummer"]="fehlt";
                     if(strassenAnalyse.konflikt){fehler["Stra\u00dfe"]="pr\u00fcfen";fehler["Hausnummer"]="pr\u00fcfen";}
                 }
-                if(plz=="")fehler["PLZ"]="fehlt";else if(de&&!/^\d{5}$/.test(plz))fehler["PLZ"]="ung\u00fcltig";
-                if(ort=="")fehler["Ort"]="fehlt";
+                var plzOrtAnalyse=plzOrtAnalysieren(plz,ort,land);
+                if(!plzOrtAnalyse.plzVorhanden)fehler["PLZ"]="fehlt";
+                else if(plzOrtAnalyse.ungueltigeDePlz)fehler["PLZ"]="ung\u00fcltig";
+                if(!plzOrtAnalyse.ortVorhanden)fehler["Ort"]="fehlt";
+                if(plzOrtAnalyse.konflikt){fehler["PLZ"]="pr\u00fcfen";fehler["Ort"]="pr\u00fcfen";}
                 return fehler;
             }
             var fehler=fehlerfelder();
@@ -1866,8 +1938,14 @@
                     wertAusDatensatz(mapping,ds,"Hausnummer")
                 );
                 var ansch=pf!=""?postfachZeileNormalisieren(pf):strassenAnalyse.zeile;
-                var po=verbindeTeile([wertAusDatensatz(mapping,ds,"PLZ"),wertAusDatensatz(mapping,ds,"Ort")]);
-                var land=wertAusDatensatz(mapping,ds,"Land");if(land=="")land="Deutschland";
+                var land=wertAusDatensatz(mapping,ds,"Land");
+                var plzOrtAnalyse=plzOrtAnalysieren(
+                    wertAusDatensatz(mapping,ds,"PLZ"),
+                    wertAusDatensatz(mapping,ds,"Ort"),
+                    land
+                );
+                var po=plzOrtAnalyse.zeile;
+                if(land=="")land="Deutschland";
                 var en=liste.add("item",String(nr));en.subItems[0].text=emp;en.subItems[1].text=ansch;en.subItems[2].text=po;en.subItems[3].text=land;
             }
             seitenContainer.add("statictext",undefined,max+" von "+frei.length+" freigegebenen Datens\u00e4tzen werden angezeigt.");
@@ -1948,7 +2026,9 @@
                 var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
                 var strassenzeile = postfach != "" ? "" : strassenAnalyse.zeile;
                 var postfachzeile = postfach != "" ? postfachZeileNormalisieren(postfach) : "";
-                var plzOrt = verbindeTeile([plz, ort]);
+                var land = exportWert(datensatz, "Land");
+                var plzOrtAnalyse = plzOrtAnalysieren(plz, ort, land);
+                var plzOrt = plzOrtAnalyse.zeile;
 
                 return {
                     person: person,
