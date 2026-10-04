@@ -595,10 +595,15 @@
             if (fehlerfelder[feld]) {
                 var hinweis = zeile.add("statictext", undefined, fehlerfelder[feld]);
                 hinweis.preferredSize.width = 95;
-                try {
-                    var rotHinweis = hinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                    hinweis.graphics.foregroundColor = rotHinweis;
-                } catch (e) {}
+                hinweis.onDraw = function () {
+                    var g = this.graphics;
+                    try {
+                        var pen = g.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
+                        g.drawString(this.text, pen, 0, 0);
+                    } catch (e) {
+                        try { g.drawOSControl(); } catch (e2) {}
+                    }
+                };
             } else {
                 var platzhalter = zeile.add("statictext", undefined, "");
                 platzhalter.preferredSize.width = 95;
