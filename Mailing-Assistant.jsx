@@ -17,6 +17,42 @@
         return String(text).replace(/^\s+|\s+$/g, "");
     }
 
+    function bereinigeSicherenText(text) {
+        if (text === null || text === undefined) return "";
+        var wert = String(text);
+        wert = wert.replace(/\u00A0/g, " ");
+        wert = wert.replace(/[\t\r\n]+/g, " ");
+        wert = wert.replace(/ {2,}/g, " ");
+        wert = wert.replace(/^\s+|\s+$/g, "");
+        return wert;
+    }
+
+    function sichereTextbereinigungAnwenden(csvDaten) {
+        if (csvDaten.bereinigungsprotokoll) return csvDaten.bereinigungsprotokoll;
+        var protokoll = [];
+        var i;
+        var j;
+        var vorher;
+        var nachher;
+        for (i = 0; i < csvDaten.datensaetze.length; i++) {
+            for (j = 0; j < csvDaten.datensaetze[i].length; j++) {
+                vorher = csvDaten.datensaetze[i][j];
+                nachher = bereinigeSicherenText(vorher);
+                if (String(vorher) != nachher) {
+                    protokoll.push({
+                        datensatz: i + 1,
+                        spalte: j < csvDaten.spalten.length ? csvDaten.spalten[j] : "Spalte " + (j + 1),
+                        vorher: String(vorher),
+                        nachher: nachher
+                    });
+                    csvDaten.datensaetze[i][j] = nachher;
+                }
+            }
+        }
+        csvDaten.bereinigungsprotokoll = protokoll;
+        return protokoll;
+    }
+
     function verbindeTeile(teile) {
         var ergebnis = [];
         var i;
@@ -318,6 +354,46 @@
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show();
         if (ergebnis == 1) zeigeSpaltenzuordnung(datei, csvDaten);
+        if (ergebnis == 2) zeigeDatenbereinigung(datei, csvDaten, mapping);
+    }
+
+    function zeigeDatenbereinigung(datei, csvDaten, mapping) {
+        var protokoll = sichereTextbereinigungAnwenden(csvDaten);
+        var dlg = new Window("dialog", "Mailing-Assistant – Datenbereinigung");
+        dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
+        dlg.add("statictext", undefined, "Sichere Textbereinigung");
+        dlg.add("statictext", undefined, "Bereinigt werden nur eindeutige Formatierungsfehler: Rand-Leerzeichen, Mehrfach-Leerzeichen, Tabs und Zeilenumbrüche.");
+
+        var info = dlg.add("panel"); info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
+        info.add("statictext", undefined, "Automatisch bereinigte Felder: " + protokoll.length);
+        info.add("statictext", undefined, "Die Quelldatei bleibt unverändert. Die Korrekturen gelten nur intern für diesen Mailing-Auftrag.");
+
+        if (protokoll.length > 0) {
+            var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll – erste 20 Änderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
+            var liste = bereich.add("listbox", undefined, [], {numberOfColumns: 4, showHeaders: true, columnTitles: ["Datensatz", "Spalte", "Vorher", "Nachher"], columnWidths: [70, 140, 220, 220]});
+            liste.preferredSize = [680, 260];
+            var maximaleVorschau = Math.min(20, protokoll.length);
+            var i;
+            var eintrag;
+            for (i = 0; i < maximaleVorschau; i++) {
+                eintrag = liste.add("item", String(protokoll[i].datensatz));
+                eintrag.subItems[0].text = protokoll[i].spalte;
+                eintrag.subItems[1].text = protokoll[i].vorher.replace(/[\r\n\t]/g, " ");
+                eintrag.subItems[2].text = protokoll[i].nachher;
+            }
+            if (protokoll.length > maximaleVorschau) dlg.add("statictext", undefined, maximaleVorschau + " von " + protokoll.length + " Änderungen werden angezeigt.");
+        } else {
+            dlg.add("statictext", undefined, "Keine sicheren Textbereinigungen erforderlich.");
+        }
+
+        var buttons = dlg.add("group"); buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zurück");
+        var fertig = buttons.add("button", undefined, "Fertig");
+        zurueck.onClick = function () { dlg.close(1); };
+        fertig.onClick = function () { dlg.close(2); };
+        dlg.center();
+        var ergebnis = dlg.show();
+        if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
     }
 
     zeigeStartseite();
