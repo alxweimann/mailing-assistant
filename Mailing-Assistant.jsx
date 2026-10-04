@@ -2952,8 +2952,26 @@
             zeigeDatenquelle();
         }else if(ergebnis==7){
             var mappingFuerPdf=aktuellesMapping;
-            exportierePrueflistePdf(mappingFuerPdf);
-            zeigeDatenWizardFenster(datei,csvDaten,true,"bereinigung",mappingFuerPdf);
+
+            function prueflisteNachModalemDialog(){
+                exportierePrueflistePdf(mappingFuerPdf);
+                zeigeDatenWizardFenster(datei,csvDaten,true,"bereinigung",mappingFuerPdf);
+            }
+
+            try{
+                var idleName="MailingAssistant_Pruefliste_"+String(new Date().getTime());
+                var idleTask=app.idleTasks.add({name:idleName,sleep:250});
+                var idleHandler=function(event){
+                    try{idleTask.removeEventListener(IdleEvent.ON_IDLE,idleHandler);}catch(e0){}
+                    try{idleTask.remove();}catch(e1){}
+                    prueflisteNachModalemDialog();
+                };
+                idleTask.addEventListener(IdleEvent.ON_IDLE,idleHandler);
+            }catch(eIdle){
+                // Fallback: InDesign kurz Zeit geben, den modalen Zustand vollstaendig abzubauen.
+                $.sleep(350);
+                prueflisteNachModalemDialog();
+            }
         }
     }
 
