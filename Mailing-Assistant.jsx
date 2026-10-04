@@ -165,6 +165,18 @@
         return ergebnis;
     }
 
+    function postfachZeileNormalisieren(postfach) {
+        var wert = trimText(postfach);
+        if (wert == "") return "";
+
+        // Bereits vorhandene Bezeichnungen wie "Postfach" oder "PF"/"PF."
+        // werden entfernt und einheitlich wieder vorangestellt.
+        wert = wert.replace(/^\s*(?:postfach|pf\.?)(?:\s+|$)/i, "");
+        wert = trimText(wert);
+
+        return wert == "" ? "Postfach" : "Postfach " + wert;
+    }
+
     function postalischePflichtfelderPruefen(csvDaten, mapping) {
         var fundstellen = [];
         var i;
@@ -194,7 +206,7 @@
                 fundstellen.push({
                     datensatz: i + 1,
                     empfaenger: verbindeTeile([firma, vorname, nachname]),
-                    anschrift: postfach != "" ? "Postfach " + postfach : strassenAnalyse.zeile,
+                    anschrift: postfach != "" ? postfachZeileNormalisieren(postfach) : strassenAnalyse.zeile,
                     ort: verbindeTeile([plz, ort]),
                     hinweis: hinweise.join(" ")
                 });
@@ -1594,7 +1606,7 @@
                 var ort=verbindeTeile([wertAusDatensatz(mapping,datensatz,"PLZ"),wertAusDatensatz(mapping,datensatz,"Ort")]);
                 var land=wertAusDatensatz(mapping,datensatz,"Land");
                 if(firma!="")zeilen.push(firma); if(person!="")zeilen.push(person); if(zusatz!="")zeilen.push(zusatz);
-                if(postfach!="")zeilen.push("Postfach "+postfach); else if(strasse!="")zeilen.push(strasse);
+                if(postfach!="")zeilen.push(postfachZeileNormalisieren(postfach)); else if(strasse!="")zeilen.push(strasse);
                 if(ort!="")zeilen.push(ort);
                 var lk=land.toLowerCase(); if(land!=""&&lk!="deutschland"&&lk!="de"&&lk!="germany"&&lk!="deu")zeilen.push(land);
                 return zeilen.join("\r\n");
@@ -1853,7 +1865,7 @@
                     wertAusDatensatz(mapping,ds,"Stra\u00dfe"),
                     wertAusDatensatz(mapping,ds,"Hausnummer")
                 );
-                var ansch=pf!=""?"Postfach "+pf:strassenAnalyse.zeile;
+                var ansch=pf!=""?postfachZeileNormalisieren(pf):strassenAnalyse.zeile;
                 var po=verbindeTeile([wertAusDatensatz(mapping,ds,"PLZ"),wertAusDatensatz(mapping,ds,"Ort")]);
                 var land=wertAusDatensatz(mapping,ds,"Land");if(land=="")land="Deutschland";
                 var en=liste.add("item",String(nr));en.subItems[0].text=emp;en.subItems[1].text=ansch;en.subItems[2].text=po;en.subItems[3].text=land;
@@ -1935,7 +1947,7 @@
                 var person = verbindeTeile([anrede, titel, vorname, nachname]);
                 var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
                 var strassenzeile = postfach != "" ? "" : strassenAnalyse.zeile;
-                var postfachzeile = postfach != "" ? "Postfach " + postfach : "";
+                var postfachzeile = postfach != "" ? postfachZeileNormalisieren(postfach) : "";
                 var plzOrt = verbindeTeile([plz, ort]);
 
                 return {
