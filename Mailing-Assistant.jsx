@@ -2,6 +2,16 @@
 
 (function () {
 
+    var aktuellerAuftrag = {
+        auftragsnummer: "",
+        kunde: "",
+        bezeichnung: "",
+        produktionsdatum: "",
+        versanddatum: "",
+        versandart: "",
+        sollAuflage: ""
+    };
+
     function heutigesDatum() {
         var heute = new Date();
         var tag = heute.getDate();
@@ -1361,7 +1371,24 @@
         zeileSollHinweis.add("statictext", undefined, "Leer lassen = Auflage wird automatisch aus den freigegebenen Datens\u00e4tzen ermittelt.");
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var weiter = buttons.add("button", undefined, "Weiter");
         zurueck.onClick = function () { dlg.close(1); };
-        weiter.onClick = function () { if (feldSollAuflage.text != "" && (!/^\d+$/.test(feldSollAuflage.text) || parseInt(feldSollAuflage.text, 10) <= 0)) { alert("Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben."); feldSollAuflage.active = true; return; } dlg.close(2); };
+        weiter.onClick = function () {
+            if (feldSollAuflage.text != "" && (!/^\d+$/.test(feldSollAuflage.text) || parseInt(feldSollAuflage.text, 10) <= 0)) {
+                alert("Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben.");
+                feldSollAuflage.active = true;
+                return;
+            }
+
+            aktuellerAuftrag.auftragsnummer = trimText(feldAuftrag.text);
+            aktuellerAuftrag.kunde = trimText(feldKunde.text);
+            aktuellerAuftrag.bezeichnung = trimText(feldBezeichnung.text);
+            aktuellerAuftrag.produktionsdatum = trimText(feldProduktionsdatum.text);
+            aktuellerAuftrag.versanddatum = trimText(feldVersanddatum.text);
+            aktuellerAuftrag.versandart = feldVersandart.selection ? feldVersandart.selection.text : "";
+            if (aktuellerAuftrag.versandart == "Sonstiges") aktuellerAuftrag.versandart = trimText(feldSonstiges.text);
+            aktuellerAuftrag.sollAuflage = trimText(feldSollAuflage.text);
+
+            dlg.close(2);
+        };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeStartseite(); if (ergebnis == 2) zeigeDatenquelle();
     }
 
@@ -2288,7 +2315,6 @@
                 zeilen.push(werte.join("\t"));
             }
 
-            var basis = datei && datei.name ? datei.name.replace(/\.[^.]+$/, "") : "Mailing";
             var heute = new Date();
             var jahr = heute.getFullYear();
             var monat = heute.getMonth() + 1;
@@ -2297,8 +2323,38 @@
             if (tag < 10) tag = "0" + tag;
             var datumsCode = String(jahr) + String(monat) + String(tag);
 
-            basis = basis.replace(/[\\\/:*?"<>|]+/g, "_");
-            var vorgeschlagenerName = basis + "_" + datumsCode + "_InDesign-Daten.txt";
+            function dateinameTeil(text) {
+                var wert = trimText(text);
+                if (wert == "") return "";
+                wert = wert.replace(/[\\\/:*?"<>|]+/g, "_");
+                wert = wert.replace(/\s+/g, "_");
+                wert = wert.replace(/_+/g, "_");
+                wert = wert.replace(/^_+|_+$/g, "");
+                return wert;
+            }
+
+            var dateinameTeile = [];
+            var teil;
+
+            teil = dateinameTeil(aktuellerAuftrag.auftragsnummer);
+            if (teil != "") dateinameTeile.push(teil);
+
+            teil = dateinameTeil(aktuellerAuftrag.kunde);
+            if (teil != "") dateinameTeile.push(teil);
+
+            teil = dateinameTeil(aktuellerAuftrag.bezeichnung);
+            if (teil != "") dateinameTeile.push(teil);
+
+            if (dateinameTeile.length == 0) {
+                teil = datei && datei.name ? dateinameTeil(datei.name.replace(/\.[^.]+$/, "")) : "Mailing";
+                if (teil == "") teil = "Mailing";
+                dateinameTeile.push(teil);
+            }
+
+            dateinameTeile.push(datumsCode);
+            dateinameTeile.push("InDesign-Daten");
+
+            var vorgeschlagenerName = dateinameTeile.join("_") + ".txt";
 
             var vorgeschlageneDatei = File(Folder.myDocuments.fsName + "/" + vorgeschlagenerName);
             var ziel = vorgeschlageneDatei.saveDlg(
