@@ -1105,7 +1105,7 @@
         vb += "Set fso=CreateObject(\"Scripting.FileSystemObject\")\r\n";
         vb += "Sub WriteProgress(phaseName,currentValue,totalValue)\r\n";
         vb += " On Error Resume Next\r\n";
-        vb += " Dim p\r\n Set p=fso.CreateTextFile(\"" + vbScriptText(statusPfad) + "\",True,True)\r\n";
+        vb += " Dim p\r\n Set p=fso.CreateTextFile(\"" + vbScriptText(statusPfad) + "\",True,False)\r\n";
         vb += " p.Write phaseName & \"|\" & currentValue & \"|\" & totalValue\r\n p.Close\r\n";
         vb += "End Sub\r\n";
         vb += "Call WriteProgress(\"OPEN\",0,1)\r\n";
@@ -1137,7 +1137,7 @@
         vb += "  If col<lastCol Then stm.WriteText \"|\"\r\n";
         vb += " Next\r\n";
         vb += " stm.WriteText vbCrLf\r\n";
-        vb += " If currentRow=1 Or currentRow=totalRows Or (currentRow Mod 25)=0 Then Call WriteProgress(\"READ\",currentRow,totalRows)\r\n";
+        vb += " If currentRow=1 Or currentRow=totalRows Or (currentRow Mod 10)=0 Then Call WriteProgress(\"READ\",currentRow,totalRows)\r\n";
         vb += "Next\r\n";
         vb += "Call WriteProgress(\"SAVE\",totalRows,totalRows)\r\n";
         vb += "stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\n";
@@ -1169,13 +1169,13 @@
                 var fehlerText = textDateiLesen(fehlerPfad);
                 if (fehlerText != "") throw new Error(fehlerText);
 
-                if (File(fertigPfad).exists) break;
-
                 var statusInhalt = textDateiLesen(statusPfad);
                 if (statusInhalt != "" && statusInhalt != letzterStatus) {
                     letzterStatus = statusInhalt;
                     statusAktualisieren(statusInhalt, startZeit);
                 }
+
+                if (File(fertigPfad).exists) break;
 
                 if ((new Date().getTime() - startZeit) > timeoutMs) {
                     throw new Error("Zeit\u00fcberschreitung beim Einlesen der Excel-Datei.");
