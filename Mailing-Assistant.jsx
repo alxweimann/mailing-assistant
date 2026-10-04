@@ -306,6 +306,33 @@
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1)zeigeNeuenAuftrag();
     }
 
+    function zeigeXlsxBlattauswahl(datei,blaetter){
+        var dlg=new Window("dialog","Mailing-Assistant – Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        dlg.add("statictext",undefined,"Excel-Tabellenblatt auswählen");
+        dlg.add("statictext",undefined,"Diese Datei enthält mehrere Tabellenblätter. Bitte wähle das Blatt mit den Mailingdaten.");
+        var liste=dlg.add("listbox",undefined,[],{multiselect:false});liste.preferredSize=[420,180];
+        var i;for(i=0;i<blaetter.length;i++)liste.add("item",blaetter[i]);if(blaetter.length)liste.selection=0;
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");
+        zurueck.onClick=function(){dlg.close(1);};
+        weiter.onClick=function(){if(!liste.selection){alert("Bitte ein Tabellenblatt auswählen.");return;}var sheet=liste.selection.text;dlg.close(2);try{var roh=xlsxDatenLesen(datei,sheet);zeigeXlsxUeberschriftenentscheidung(datei,sheet,roh);}catch(e){alert("Das Tabellenblatt konnte nicht gelesen werden.\n\nFehler: "+e);}};
+        dlg.center();var ergebnis=dlg.show();if(ergebnis==1)zeigeDatenquelle();
+    }
+
+    function zeigeXlsxUeberschriftenentscheidung(datei,blatt,roh){
+        var wahrscheinlich=xlsxZeileIstWahrscheinlichUeberschrift(roh.rohzeilen[0]);
+        var dlg=new Window("dialog","Mailing-Assistant – Excel-Spalten");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        dlg.add("statictext",undefined,"Excel-Daten erkannt");dlg.add("statictext",undefined,"Tabellenblatt: "+blatt);
+        dlg.add("statictext",undefined,wahrscheinlich?"Die erste Zeile sieht nach Spaltenüberschriften aus.":"Es konnten keine eindeutigen Spaltenüberschriften erkannt werden.");
+        dlg.add("statictext",undefined,"Bitte entscheiden – der Mailing-Assistant rät nicht automatisch.");
+        var gruppe=dlg.add("group");gruppe.orientation="column";gruppe.alignChildren=["left","top"];
+        var mit=gruppe.add("radiobutton",undefined,"Erste Zeile enthält Spaltenüberschriften");var ohne=gruppe.add("radiobutton",undefined,"Keine Spaltenüberschriften vorhanden");
+        if(wahrscheinlich)mit.value=true;else ohne.value=true;
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");
+        zurueck.onClick=function(){dlg.close(1);};
+        weiter.onClick=function(){var daten=xlsxDatenInStruktur(roh,mit.value);dlg.close(2);zeigeCsvVorschau(datei,daten);};
+        dlg.center();var ergebnis=dlg.show();if(ergebnis==1){var blaetter=xlsxTabellenblaetterLesen(datei);if(blaetter.length==1)zeigeDatenquelle();else zeigeXlsxBlattauswahl(datei,blaetter);}
+    }
+
     function zeigeCsvVorschau(datei, csvDaten) {
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenvorschau");
         dlg.orientation = "column";     function zeigeXlsxBlattauswahl(datei,blaetter){
