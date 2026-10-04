@@ -235,6 +235,81 @@
         return result;
     }
 
+    function zeigeFinaleFreigabe(datei, csvDaten, mapping) {
+        var status = csvDaten.freigabestatus || {};
+        var freigegeben = [];
+        var ausgeschlossen = [];
+        var offen = [];
+        var i;
+
+        for (i = 1; i <= csvDaten.anzahl; i++) {
+            var wert = status[i] || "\u00dcbernehmen";
+            if (wert == "\u00dcbernehmen") freigegeben.push(i);
+            else if (wert == "Ausschlie\u00dfen") ausgeschlossen.push(i);
+            else offen.push(i);
+        }
+
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Finale Freigabe");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+        dlg.add("statictext", undefined, "Finale Freigabe");
+
+        var info = dlg.add("panel");
+        info.orientation = "column";
+        info.alignChildren = ["left", "top"];
+        info.margins = 15;
+        info.spacing = 6;
+        info.add("statictext", undefined, "Gesamte Datens\u00e4tze: " + csvDaten.anzahl);
+        info.add("statictext", undefined, "Freigegebene Auflage: " + freigegeben.length);
+        info.add("statictext", undefined, "Ausgeschlossen: " + ausgeschlossen.length);
+        info.add("statictext", undefined, "Noch offen: " + offen.length);
+
+        if (ausgeschlossen.length > 0) {
+            dlg.add("statictext", undefined, "Ausgeschlossene Datens\u00e4tze: " + ausgeschlossen.join(", "));
+        }
+
+        if (offen.length > 0) {
+            dlg.add("statictext", undefined, "Offene Datens\u00e4tze: " + offen.join(", "));
+            dlg.add("statictext", undefined, "Der Auftrag kann noch nicht final freigegeben werden.");
+        } else {
+            dlg.add("statictext", undefined, "Alle Datens\u00e4tze sind entschieden.");
+            dlg.add("statictext", undefined, "Die freigegebene Auflage betr\u00e4gt " + freigegeben.length + ".");
+        }
+
+        var buttons = dlg.add("group");
+        buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+        var weiter = buttons.add("button", undefined, offen.length > 0 ? "Offene Datens\u00e4tze pr\u00fcfen" : "Weiter zur Mailing-Verarbeitung");
+
+        zurueck.onClick = function(){ dlg.close(1); };
+        weiter.onClick = function(){ dlg.close(offen.length > 0 ? 2 : 3); };
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1) {
+            zeigeFreigabeZusammenfassung(datei, csvDaten, mapping);
+        } else if (ergebnis == 2) {
+            zeigeDatensatzFreigabe(
+                datei,
+                csvDaten,
+                mapping,
+                deutschePlzPruefen(csvDaten, mapping),
+                postalischePflichtfelderPruefen(csvDaten, mapping),
+                eindeutigeDublettenPruefen(csvDaten, mapping),
+                problematischeZeichenErkennen(csvDaten),
+                true
+            );
+        } else if (ergebnis == 3) {
+            csvDaten.freigegebeneDatensatznummern = freigegeben;
+            csvDaten.ausgeschlosseneDatensatznummern = ausgeschlossen;
+            alert("Freigabe abgeschlossen.\n\nFreigegebene Auflage: " + freigegeben.length + "\nAusgeschlossen: " + ausgeschlossen.length + "\n\nDie Daten sind jetzt f\u00fcr die Mailing-Verarbeitung vorbereitet.");
+        }
+    }
+
     function zeigeFreigabeZusammenfassung(datei, csvDaten, mapping) {
         var status = csvDaten.freigabestatus || {};
         var uebernehmen = 0;
@@ -300,6 +375,8 @@
                 problematischeZeichenErkennen(csvDaten),
                 ergebnis == 2
             );
+        } else if (ergebnis == 3) {
+            zeigeFinaleFreigabe(datei, csvDaten, mapping);
         }
     }
 
