@@ -1854,58 +1854,6 @@
             }
 
             var zeilen = [];
-
-                var firma = wertAusDatensatz(mapping, datensatz, "Firma");
-                var person = verbindeTeile([
-                    wertAusDatensatz(mapping, datensatz, "Anrede"),
-                    wertAusDatensatz(mapping, datensatz, "Titel"),
-                    wertAusDatensatz(mapping, datensatz, "Vorname"),
-                    wertAusDatensatz(mapping, datensatz, "Nachname")
-                ]);
-                var adresszusatz = wertAusDatensatz(mapping, datensatz, "Adresszusatz");
-
-                var strasse = wertAusDatensatz(mapping, datensatz, "Straße");
-                if (strasse == "" && mapping["Strasse"]) {
-                    var altMap = {};
-                    var key;
-                    for (key in mapping) if (mapping.hasOwnProperty(key)) altMap[key] = mapping[key];
-                    altMap["Straße"] = mapping["Strasse"];
-                    strasse = wertAusDatensatz(altMap, datensatz, "Straße");
-                }
-
-                var hausnummer = wertAusDatensatz(mapping, datensatz, "Hausnummer");
-                var postfach = wertAusDatensatz(mapping, datensatz, "Postfach");
-                var plz = wertAusDatensatz(mapping, datensatz, "PLZ");
-                var ort = wertAusDatensatz(mapping, datensatz, "Ort");
-                var land = wertAusDatensatz(mapping, datensatz, "Land");
-                var landKlein = land.toLowerCase();
-
-                if (firma != "") zeilen.push(firma);
-                if (person != "") zeilen.push(person);
-                if (adresszusatz != "") zeilen.push(adresszusatz);
-
-                if (postfach != "") {
-                    zeilen.push("Postfach " + postfach);
-                } else {
-                    var strasseZeile = verbindeTeile([strasse, hausnummer]);
-                    if (strasseZeile != "") zeilen.push(strasseZeile);
-                }
-
-                var ortZeile = verbindeTeile([plz, ort]);
-                if (ortZeile != "") zeilen.push(ortZeile);
-
-                if (land != "" &&
-                    landKlein != "deutschland" &&
-                    landKlein != "de" &&
-                    landKlein != "deu" &&
-                    landKlein != "germany") {
-                    zeilen.push(land);
-                }
-
-                return zeilen.join("\r");
-            }
-
-            var zeilen = [];
             var header = ["Datensatz"];
             for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
             zeilen.push(header.join("\t"));
