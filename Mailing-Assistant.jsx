@@ -75,14 +75,38 @@
                     if ((code >= 0 && code <= 8) || code == 11 || code == 12 || (code >= 14 && code <= 31) || code == 127 || code == 8203 || code == 8204 || code == 8205 || code == 8288 || code == 65279) {
                         codeText = code.toString(16).toUpperCase();
                         while (codeText.length < 4) codeText = "0" + codeText;
-                        fundstellen.push({
-                            datensatz: i + 1,
-                            spalte: j < csvDaten.spalten.length ? csvDaten.spalten[j] : "Spalte " + (j + 1),
-                            zeichen: "U+" + codeText,
-                            wert: wert
-                        });
+                        fundstellen.push({datensatz: i + 1, spalte: j < csvDaten.spalten.length ? csvDaten.spalten[j] : "Spalte " + (j + 1), zeichen: "U+" + codeText, wert: wert});
                     }
                 }
+            }
+        }
+        return fundstellen;
+    }
+
+    function mappingSpaltenindex(csvDaten, mapping, feld) {
+        if (!mapping[feld] || mapping[feld] == "\u2014 nicht zugeordnet \u2014") return -1;
+        var i;
+        for (i = 0; i < csvDaten.spalten.length; i++) if (csvDaten.spalten[i] == mapping[feld]) return i;
+        return -1;
+    }
+
+    function deutschePlzPruefen(csvDaten, mapping) {
+        var fundstellen = [];
+        var plzIndex = mappingSpaltenindex(csvDaten, mapping, "PLZ");
+        var landIndex = mappingSpaltenindex(csvDaten, mapping, "Land");
+        if (plzIndex < 0) return fundstellen;
+        var i;
+        var plz;
+        var land;
+        var landKlein;
+        var istDeutschland;
+        for (i = 0; i < csvDaten.datensaetze.length; i++) {
+            plz = plzIndex < csvDaten.datensaetze[i].length ? trimText(csvDaten.datensaetze[i][plzIndex]) : "";
+            land = landIndex >= 0 && landIndex < csvDaten.datensaetze[i].length ? trimText(csvDaten.datensaetze[i][landIndex]) : "";
+            landKlein = land.toLowerCase();
+            istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
+            if (istDeutschland && !/^\d{5}$/.test(plz)) {
+                fundstellen.push({datensatz: i + 1, plz: plz, land: land, hinweis: "Deutsche PLZ muss aus genau 5 Ziffern bestehen."});
             }
         }
         return fundstellen;
@@ -307,6 +331,7 @@
     function zeigeDatenbereinigung(datei, csvDaten, mapping) {
         var protokoll = sichereTextbereinigungAnwenden(csvDaten);
         var problematischeZeichen = problematischeZeichenErkennen(csvDaten);
+        var plzHinweise = deutschePlzPruefen(csvDaten, mapping);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenbereinigung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Sichere Textbereinigung");
@@ -314,6 +339,7 @@
         var info = dlg.add("panel"); info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
         info.add("statictext", undefined, "Automatisch bereinigte Felder: " + protokoll.length);
         info.add("statictext", undefined, "Problematische/versteckte Zeichen erkannt: " + problematischeZeichen.length);
+        info.add("statictext", undefined, "PLZ-Pr\u00fcfhinweise: " + plzHinweise.length);
         info.add("statictext", undefined, "Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
         if (protokoll.length > 0) {
             var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll \u2013 erste 20 \u00c4nderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
@@ -330,6 +356,14 @@
             if (problematischeZeichen.length > maximalePruefung) dlg.add("statictext", undefined, maximalePruefung + " von " + problematischeZeichen.length + " Pr\u00fcfhinweisen werden angezeigt.");
             dlg.add("statictext", undefined, "Diese Zeichen werden nicht automatisch ver\u00e4ndert oder entfernt.");
         } else dlg.add("statictext", undefined, "Keine problematischen oder versteckten Steuerzeichen erkannt.");
+        if (plzHinweise.length > 0) {
+            var plzBereich = dlg.add("panel"); plzBereich.text = "Pr\u00fcfhinweise \u2013 deutsche PLZ"; plzBereich.orientation = "column"; plzBereich.alignChildren = ["fill", "top"]; plzBereich.margins = 15;
+            var plzListe = plzBereich.add("listbox", undefined, [], {numberOfColumns: 4, showHeaders: true, columnTitles: ["Datensatz", "PLZ", "Land", "Hinweis"], columnWidths: [70, 90, 110, 320]}); plzListe.preferredSize = [620, 160];
+            var maximalePlzPruefung = Math.min(20, plzHinweise.length); var z; var plzEintrag;
+            for (z = 0; z < maximalePlzPruefung; z++) { plzEintrag = plzListe.add("item", String(plzHinweise[z].datensatz)); plzEintrag.subItems[0].text = plzHinweise[z].plz == "" ? "[leer]" : plzHinweise[z].plz; plzEintrag.subItems[1].text = plzHinweise[z].land == "" ? "[leer = DE]" : plzHinweise[z].land; plzEintrag.subItems[2].text = plzHinweise[z].hinweis; }
+            if (plzHinweise.length > maximalePlzPruefung) dlg.add("statictext", undefined, maximalePlzPruefung + " von " + plzHinweise.length + " PLZ-Pr\u00fcfhinweisen werden angezeigt.");
+            dlg.add("statictext", undefined, "PLZ-Werte werden nicht automatisch erg\u00e4nzt oder ver\u00e4ndert.");
+        } else dlg.add("statictext", undefined, "Keine ung\u00fcltigen deutschen PLZ erkannt.");
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
