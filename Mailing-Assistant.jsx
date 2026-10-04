@@ -164,8 +164,8 @@
             if (hausnummer != "" &&
                 vergleichswert(ergebnis.erkannteHausnummer) != vergleichswert(hausnummer)) {
                 ergebnis.konflikt = true;
-                ergebnis.hinweis = "Hausnummer widersprüchlich: Straße enthält " +
-                    ergebnis.erkannteHausnummer + ", separates Feld enthält " + hausnummer + ".";
+                ergebnis.hinweis = "Hausnummer widerspr\u00fcchlich: Stra\u00dfe enth\u00e4lt " +
+                    ergebnis.erkannteHausnummer + ", separates Feld enth\u00e4lt " + hausnummer + ".";
             }
             return ergebnis;
         }
