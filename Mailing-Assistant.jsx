@@ -1244,6 +1244,8 @@
         dlg.spacing = 12;
         dlg.margins = 20;
 
+        var aktuellesMapping = null;
+
         function leeren() {
             while (dlg.children.length > 0) dlg.remove(dlg.children[0]);
         }
@@ -1316,13 +1318,13 @@
             };
 
             weiter.onClick = function () {
-                zeigeMappingSeite();
+                zeigeMappingSeite(aktuellesMapping);
             };
 
             neuLayouten();
         }
 
-        function zeigeMappingSeite() {
+        function zeigeMappingSeite(vorhandenesMapping) {
             leeren();
             dlg.text = "Mailing-Assistant \u2013 Spaltenzuordnung";
 
@@ -1365,6 +1367,16 @@
                 return aliases[name] || null;
             }
 
+            function feldFuerKundenspalte(spaltenname) {
+                var key;
+                if (vorhandenesMapping) {
+                    for (key in vorhandenesMapping) {
+                        if (vorhandenesMapping.hasOwnProperty(key) && vorhandenesMapping[key] == spaltenname) return key;
+                    }
+                }
+                return vorgeschlagenesFeld(spaltenname);
+            }
+
             var kopf = dlg.add("group");
             kopf.orientation = "row";
             var kopfQuelle = kopf.add("statictext", undefined, "Kundenspalte");
@@ -1392,7 +1404,7 @@
                 auswahl.preferredSize.width = 220;
                 auswahl.selection = 0;
 
-                var vorschlag = vorgeschlagenesFeld(csvDaten.spalten[i]);
+                var vorschlag = feldFuerKundenspalte(csvDaten.spalten[i]);
                 if (vorschlag && !verwendet[vorschlag]) {
                     for (j = 1; j < auswahlFelder.length; j++) {
                         if (auswahlFelder[j] == vorschlag) {
@@ -1448,6 +1460,120 @@
                     }
                 }
 
+                aktuellesMapping = mapping;
+                zeigeAdressSeite(mapping);
+            };
+
+            neuLayouten();
+        }
+
+        function zeigeAdressSeite(mapping) {
+            leeren();
+            dlg.text = "Mailing-Assistant \u2013 Adressvorschau";
+
+            dlg.add("statictext", undefined, "Postalische Adressvorschau");
+            dlg.add("statictext", undefined, "W\u00e4hle links einen Datensatz aus. Rechts siehst du die zusammengesetzte postalische Anschrift.");
+
+            function wertAusDatensatz(datensatz, feld) {
+                if (!mapping[feld] || mapping[feld] == "\u2014 nicht zugeordnet \u2014") return "";
+                var s;
+                for (s = 0; s < csvDaten.spalten.length; s++) {
+                    if (csvDaten.spalten[s] == mapping[feld]) return s < datensatz.length ? trimText(datensatz[s]) : "";
+                }
+                return "";
+            }
+
+            function postalischeAdresse(datensatz) {
+                var zeilen = [];
+                var firma = wertAusDatensatz(datensatz, "Firma");
+                var person = verbindeTeile([
+                    wertAusDatensatz(datensatz, "Anrede"),
+                    wertAusDatensatz(datensatz, "Titel"),
+                    wertAusDatensatz(datensatz, "Vorname"),
+                    wertAusDatensatz(datensatz, "Nachname")
+                ]);
+                var adresszusatz = wertAusDatensatz(datensatz, "Adresszusatz");
+                var strasse = verbindeTeile([
+                    wertAusDatensatz(datensatz, "Stra\u00dfe"),
+                    wertAusDatensatz(datensatz, "Hausnummer")
+                ]);
+                var postfach = wertAusDatensatz(datensatz, "Postfach");
+                var ort = verbindeTeile([
+                    wertAusDatensatz(datensatz, "PLZ"),
+                    wertAusDatensatz(datensatz, "Ort")
+                ]);
+                var land = wertAusDatensatz(datensatz, "Land");
+
+                if (firma != "") zeilen.push(firma);
+                if (person != "") zeilen.push(person);
+                if (adresszusatz != "") zeilen.push(adresszusatz);
+                if (postfach != "") zeilen.push("Postfach " + postfach);
+                else if (strasse != "") zeilen.push(strasse);
+                if (ort != "") zeilen.push(ort);
+
+                var landKlein = land.toLowerCase();
+                if (land != "" && landKlein != "deutschland" && landKlein != "de" && landKlein != "germany" && landKlein != "deu") zeilen.push(land);
+
+                return zeilen.join("\r");
+            }
+
+            var maximaleVorschau = Math.min(10, csvDaten.datensaetze.length);
+
+            var bereich = dlg.add("panel");
+            bereich.text = "Erste 10 postalische Anschriften";
+            bereich.orientation = "row";
+            bereich.alignChildren = ["fill", "fill"];
+            bereich.margins = 15;
+            bereich.spacing = 12;
+
+            var liste = bereich.add("listbox", undefined, [], {multiselect:false});
+            liste.preferredSize = [250, 300];
+
+            var vorschau = bereich.add("edittext", undefined, "", {multiline:true, scrolling:true, readonly:true});
+            vorschau.preferredSize = [360, 300];
+
+            var i;
+            for (i = 0; i < maximaleVorschau; i++) {
+                var datensatz = csvDaten.datensaetze[i];
+                var name = verbindeTeile([
+                    wertAusDatensatz(datensatz, "Vorname"),
+                    wertAusDatensatz(datensatz, "Nachname")
+                ]);
+                var firma = wertAusDatensatz(datensatz, "Firma");
+                var kennung = name != "" ? name : firma;
+                if (kennung == "") kennung = "Datensatz " + (i + 1);
+                liste.add("item", (i + 1) + ".  " + kennung);
+            }
+
+            function aktualisiereVorschau() {
+                if (!liste.selection) {
+                    vorschau.text = "";
+                    return;
+                }
+                vorschau.text = postalischeAdresse(csvDaten.datensaetze[liste.selection.index]);
+            }
+
+            liste.onChange = aktualisiereVorschau;
+
+            if (maximaleVorschau > 0) {
+                liste.selection = 0;
+                aktualisiereVorschau();
+            } else {
+                vorschau.text = "Keine Datens\u00e4tze vorhanden.";
+            }
+
+            dlg.add("statictext", undefined, maximaleVorschau + " von " + csvDaten.anzahl + " Datens\u00e4tzen stehen zur Vorschau bereit.");
+
+            var buttons = dlg.add("group");
+            buttons.alignment = "right";
+            var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+            var weiter = buttons.add("button", undefined, "Weiter");
+
+            zurueck.onClick = function () {
+                zeigeMappingSeite(mapping);
+            };
+
+            weiter.onClick = function () {
                 dlg.__mapping = mapping;
                 dlg.close(2);
             };
@@ -1455,7 +1581,7 @@
             neuLayouten();
         }
 
-        if (startMitMapping) zeigeMappingSeite();
+        if (startMitMapping) zeigeMappingSeite(aktuellesMapping);
         else zeigeVorschauSeite();
 
         dlg.center();
@@ -1464,7 +1590,7 @@
         if (ergebnis == 1) {
             zeigeDatenquelle();
         } else if (ergebnis == 2 && dlg.__mapping) {
-            zeigeAdressvorschau(datei, csvDaten, dlg.__mapping);
+            zeigeDatenbereinigung(datei, csvDaten, dlg.__mapping);
         }
     }
 
