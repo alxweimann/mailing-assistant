@@ -1822,6 +1822,60 @@
                 return wert.replace(/^_+|_+$/g,"");
             }
 
+            function pdfByte(code) {
+                var map={
+                    0x20AC:128,0x201A:130,0x0192:131,0x201E:132,0x2026:133,0x2020:134,0x2021:135,
+                    0x02C6:136,0x2030:137,0x0160:138,0x2039:139,0x0152:140,0x017D:142,
+                    0x2018:145,0x2019:146,0x201C:147,0x201D:148,0x2022:149,0x2013:150,0x2014:151,
+                    0x02DC:152,0x2122:153,0x0161:154,0x203A:155,0x0153:156,0x017E:158,0x0178:159
+                };
+                if(code<=255)return code;
+                if(map[code]!==undefined)return map[code];
+                return 63;
+            }
+
+            function pdfText(text) {
+                text=String(text===undefined||text===null?"":text);
+                var out="",i,code,b,oct;
+                for(i=0;i<text.length;i++){
+                    code=text.charCodeAt(i);
+                    b=pdfByte(code);
+                    if(b==40||b==41||b==92){
+                        out+="\\"+String.fromCharCode(b);
+                    }else if(b>=32&&b<=126){
+                        out+=String.fromCharCode(b);
+                    }else{
+                        oct=b.toString(8);
+                        while(oct.length<3)oct="0"+oct;
+                        out+="\\"+oct;
+                    }
+                }
+                return out;
+            }
+
+            function textBrechen(text,maxLen) {
+                var worte=String(text).replace(/[\r\n\t]+/g," ").replace(/\s+/g," ").split(" ");
+                var zeilen=[],akt="",i,w;
+                for(i=0;i<worte.length;i++){
+                    w=worte[i];
+                    if(w=="")continue;
+                    if(akt==""){akt=w;continue;}
+                    if((akt+" "+w).length<=maxLen)akt+=" "+w;
+                    else{zeilen.push(akt);akt=w;}
+                }
+                if(akt!="")zeilen.push(akt);
+                if(zeilen.length==0)zeilen.push("");
+                return zeilen;
+            }
+
+            function zeichneText(stream,x,y,text,font,size) {
+                stream.push("BT /"+font+" "+size+" Tf 1 0 0 1 "+x+" "+y+" Tm ("+pdfText(text)+") Tj ET\n");
+            }
+
+            function zeichneLinie(stream,x1,y1,x2,y2,grau,breite) {
+                stream.push(grau+" G "+breite+" w "+x1+" "+y1+" m "+x2+" "+y2+" l S\n");
+            }
+
             var teile=[];
             var t=dateinameTeil(aktuellerAuftrag.auftragsnummer);if(t!="")teile.push(t);
             t=dateinameTeil(aktuellerAuftrag.kunde);if(t!="")teile.push(t);
@@ -1841,94 +1895,152 @@
             if(!ziel)return;
             if(!/\.pdf$/i.test(ziel.name))ziel=File(ziel.fsName+".pdf");
 
-            var doc=null;
             try{
-                doc=app.documents.add(false);
-                doc.documentPreferences.pageWidth="210mm";
-                doc.documentPreferences.pageHeight="297mm";
-                doc.documentPreferences.facingPages=false;
+                var seiten=[];
+                var stream=[];
+                var y=800;
+                var linkerRand=42;
+                var rechterRand=553;
+                var datensatzProSeite=0;
+                var seiteNummer=1;
+                var i;
 
-                var mm=2.834645669;
-                var links=15*mm,oben=14*mm,rechts=195*mm,unten=282*mm;
-                var zeilenProSeite=18;
-                var gesamtSeiten=Math.ceil(auff.length/zeilenProSeite);
-                if(gesamtSeiten<1)gesamtSeiten=1;
+                function neueSeite() {
+                    stream=[];
+                    y=800;
+                    datensatzProSeite=0;
 
-                while(doc.pages.length<gesamtSeiten)doc.pages.add();
+                    zeichneText(stream,linkerRand,y,"MAILING-ASSISTANT  |  PR\u00dcFLISTE","F2",15);
+                    y-=22;
+                    zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.65",0.6);
+                    y-=18;
 
-                var s;
-                for(s=0;s<gesamtSeiten;s++){
-                    var page=doc.pages[s];
-                    var tf=page.textFrames.add();
-                    tf.geometricBounds=[oben,links,unten,rechts];
-
-                    var von=s*zeilenProSeite;
-                    var bis=Math.min(auff.length,von+zeilenProSeite);
-
-                    var kopf=[];
-                    kopf.push("MAILING-ASSISTANT  |  PR\u00dcFLISTE");
-                    kopf.push("");
-                    kopf.push("Auftragsnummer: "+(aktuellerAuftrag.auftragsnummer||"-"));
-                    kopf.push("Kunde: "+(aktuellerAuftrag.kunde||"-"));
-                    kopf.push("Bezeichnung: "+(aktuellerAuftrag.bezeichnung||"-"));
-                    kopf.push("Produktionsdatum: "+(aktuellerAuftrag.produktionsdatum||"-"));
-                    kopf.push("Auff\u00e4llige Datens\u00e4tze: "+auff.length);
-                    kopf.push("Seite "+(s+1)+" von "+gesamtSeiten);
-                    kopf.push("");
-                    kopf.push("Bitte pr\u00fcfen Sie die folgenden Datens\u00e4tze und vermerken Sie die gew\u00fcnschte Korrektur.");
-                    kopf.push("");
-
-                    var body=kopf.join("\r");
-                    var i;
-                    for(i=von;i<bis;i++){
-                        var nr=auff[i].datensatz;
-                        var ds=csvDaten.datensaetze[nr-1];
-                        var emp=verbindeTeile([
-                            wertAusDatensatz(mapping,ds,"Firma"),
-                            wertAusDatensatz(mapping,ds,"Vorname"),
-                            wertAusDatensatz(mapping,ds,"Nachname")
-                        ]);
-                        if(emp=="")emp="[ohne Empf\u00e4nger]";
-
-                        var strasse=wertAusDatensatz(mapping,ds,"Stra\u00dfe");
-                        var hn=wertAusDatensatz(mapping,ds,"Hausnummer");
-                        var pf=wertAusDatensatz(mapping,ds,"Postfach");
-                        var land=wertAusDatensatz(mapping,ds,"Land");
-                        var po=plzOrtAnalysieren(
-                            wertAusDatensatz(mapping,ds,"PLZ"),
-                            wertAusDatensatz(mapping,ds,"Ort"),
-                            land
-                        );
-                        var anschrift=pf!=""?postfachZeileNormalisieren(pf):strassenHausnummerAnalysieren(strasse,hn).zeile;
-
-                        body+="Datensatz "+nr+"  |  "+emp+"\r";
-                        body+=verbindeTeile([anschrift,po.zeile])+"\r";
-                        body+="Pr\u00fcfgrund: "+auff[i].gruende.join(" ")+"\r";
-                        body+="Korrektur / Bemerkung: _________________________________________________\r";
-                        body+="______________________________________________________________________\r\r";
-                    }
-
-                    tf.contents=body;
-                    tf.texts[0].pointSize=8.5;
-                    tf.texts[0].leading=11;
-
-                    try{
-                        tf.paragraphs[0].pointSize=15;
-                        tf.paragraphs[0].leading=18;
-                    }catch(e0){}
+                    zeichneText(stream,linkerRand,y,"Auftragsnummer: "+(aktuellerAuftrag.auftragsnummer||"-"),"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Kunde: "+(aktuellerAuftrag.kunde||"-"),"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Bezeichnung: "+(aktuellerAuftrag.bezeichnung||"-"),"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Produktionsdatum: "+(aktuellerAuftrag.produktionsdatum||"-"),"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Auff\u00e4llige Datens\u00e4tze: "+auff.length,"F1",9); y-=18;
+                    zeichneText(stream,linkerRand,y,"Bitte pr\u00fcfen Sie die folgenden Datens\u00e4tze und vermerken Sie die gew\u00fcnschte Korrektur.","F1",9); y-=22;
                 }
 
-                app.pdfExportPreferences.pageRange=PageRange.ALL_PAGES;
-                doc.exportFile(ExportFormat.PDF_TYPE,ziel,false);
+                function seiteAbschliessen() {
+                    zeichneLinie(stream,linkerRand,35,rechterRand,35,"0.75",0.5);
+                    zeichneText(stream,linkerRand,22,"Mailing-Assistant Pr\u00fcfliste","F1",8);
+                    zeichneText(stream,485,22,"Seite "+seiteNummer,"F1",8);
+                    seiten.push(stream.join(""));
+                    seiteNummer++;
+                }
 
-                doc.close(SaveOptions.NO);
-                doc=null;
+                neueSeite();
+
+                for(i=0;i<auff.length;i++){
+                    var nr=auff[i].datensatz;
+                    var ds=csvDaten.datensaetze[nr-1];
+
+                    var emp=verbindeTeile([
+                        wertAusDatensatz(mapping,ds,"Firma"),
+                        wertAusDatensatz(mapping,ds,"Vorname"),
+                        wertAusDatensatz(mapping,ds,"Nachname")
+                    ]);
+                    if(emp=="")emp="[ohne Empf\u00e4nger]";
+
+                    var strasse=wertAusDatensatz(mapping,ds,"Stra\u00dfe");
+                    var hn=wertAusDatensatz(mapping,ds,"Hausnummer");
+                    var pf=wertAusDatensatz(mapping,ds,"Postfach");
+                    var land=wertAusDatensatz(mapping,ds,"Land");
+                    var po=plzOrtAnalysieren(
+                        wertAusDatensatz(mapping,ds,"PLZ"),
+                        wertAusDatensatz(mapping,ds,"Ort"),
+                        land
+                    );
+                    var anschrift=pf!=""?postfachZeileNormalisieren(pf):strassenHausnummerAnalysieren(strasse,hn).zeile;
+                    var adr=verbindeTeile([anschrift,po.zeile]);
+                    var grund=auff[i].gruende.join(" ");
+                    var grundZeilen=textBrechen(grund,92);
+
+                    var benoetigt=88+(grundZeilen.length-1)*11;
+                    if(y-benoetigt<55){
+                        seiteAbschliessen();
+                        neueSeite();
+                    }
+
+                    zeichneText(stream,linkerRand,y,"Datensatz "+nr,"F2",10);
+                    zeichneText(stream,115,y,emp,"F2",10);
+                    y-=15;
+                    zeichneText(stream,linkerRand,y,adr,"F1",9);
+                    y-=15;
+
+                    zeichneText(stream,linkerRand,y,"Pr\u00fcfgrund:","F2",9);
+                    var gz;
+                    for(gz=0;gz<grundZeilen.length;gz++){
+                        zeichneText(stream,105,y,grundZeilen[gz],"F1",9);
+                        y-=11;
+                    }
+
+                    y-=3;
+                    zeichneText(stream,linkerRand,y,"Korrektur / Bemerkung:","F1",8.5);
+                    y-=13;
+                    zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.70",0.5);
+                    y-=16;
+                    zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.85",0.5);
+                    y-=16;
+                    zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.85",0.5);
+                    y-=18;
+                    datensatzProSeite++;
+                }
+
+                seiteAbschliessen();
+
+                var objekte=[];
+                function addObj(inhalt){objekte.push(inhalt);return objekte.length;}
+
+                var catalogId=addObj("");
+                var pagesId=addObj("");
+                var fontRegularId=addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+                var fontBoldId=addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+                var pageIds=[];
+                var s;
+                for(s=0;s<seiten.length;s++){
+                    var content=seiten[s];
+                    var contentId=addObj("<< /Length "+content.length+" >>\nstream\n"+content+"endstream");
+                    var pageId=addObj("<< /Type /Page /Parent "+pagesId+" 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 "+fontRegularId+" 0 R /F2 "+fontBoldId+" 0 R >> >> /Contents "+contentId+" 0 R >>");
+                    pageIds.push(pageId);
+                }
+
+                objekte[catalogId-1]="<< /Type /Catalog /Pages "+pagesId+" 0 R >>";
+
+                var kids=[];
+                for(s=0;s<pageIds.length;s++)kids.push(pageIds[s]+" 0 R");
+                objekte[pagesId-1]="<< /Type /Pages /Count "+pageIds.length+" /Kids [ "+kids.join(" ")+" ] >>";
+
+                var pdf="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+                var offsets=[0];
+                var oid;
+                for(oid=1;oid<=objekte.length;oid++){
+                    offsets[oid]=pdf.length;
+                    pdf+=oid+" 0 obj\n"+objekte[oid-1]+"\nendobj\n";
+                }
+
+                var xrefOffset=pdf.length;
+                pdf+="xref\n0 "+(objekte.length+1)+"\n";
+                pdf+="0000000000 65535 f \n";
+                for(oid=1;oid<=objekte.length;oid++){
+                    var off=String(offsets[oid]);
+                    while(off.length<10)off="0"+off;
+                    pdf+=off+" 00000 n \n";
+                }
+                pdf+="trailer\n<< /Size "+(objekte.length+1)+" /Root "+catalogId+" 0 R >>\n";
+                pdf+="startxref\n"+xrefOffset+"\n%%EOF";
+
+                ziel.encoding="BINARY";
+                if(!ziel.open("w"))throw new Error("Zieldatei konnte nicht ge\u00f6ffnet werden.");
+                ziel.write(pdf);
+                ziel.close();
 
                 alert("Pr\u00fcfliste wurde erstellt:\r\r"+ziel.fsName);
             }catch(e){
-                if(doc){
-                    try{doc.close(SaveOptions.NO);}catch(e2){}
-                }
+                try{if(ziel&&ziel.opened)ziel.close();}catch(e2){}
                 alert("Die Pr\u00fcfliste konnte nicht als PDF erstellt werden.\r\rFehler: "+e);
             }
         }
