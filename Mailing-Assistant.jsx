@@ -1279,15 +1279,33 @@
         dlg.spacing = 12;
         dlg.margins = 20;
 
+        var seitenHost = dlg.add("group");
+        seitenHost.orientation = "column";
+        seitenHost.alignChildren = ["fill", "top"];
+        seitenHost.alignment = ["fill", "fill"];
+
+        var seitenContainer = null;
         var aktuellesMapping = null;
         var letzteNachricht = "";
 
         function leeren() {
-            while (dlg.children.length > 0) dlg.remove(dlg.children[0]);
+            if (seitenContainer) {
+                try { seitenHost.remove(seitenContainer); } catch (e0) {
+                    try { seitenContainer.visible = false; } catch (e1) {}
+                }
+            }
+            seitenContainer = seitenHost.add("group");
+            seitenContainer.orientation = "column";
+            seitenContainer.alignChildren = ["fill", "top"];
+            seitenContainer.alignment = ["fill", "fill"];
+            seitenContainer.spacing = 12;
+            seitenContainer.margins = 0;
         }
 
         function neuLayouten() {
             try {
+                seitenHost.layout.layout(true);
+                seitenHost.layout.resize();
                 dlg.layout.layout(true);
                 dlg.layout.resize();
             } catch (e) {}
@@ -1369,22 +1387,22 @@
 
         function zeigeNachricht(text) {
             if (!text) return;
-            var n = dlg.add("statictext", undefined, text);
+            var n = seitenContainer.add("statictext", undefined, text);
             n.characters = 85;
         }
 
         function zeigeVorschauSeite() {
             leeren();
             dlg.text = "Mailing-Assistant \u2013 Datenvorschau";
-            dlg.add("statictext", undefined, "Daten erfolgreich eingelesen");
+            seitenContainer.add("statictext", undefined, "Daten erfolgreich eingelesen");
 
-            var info = dlg.add("panel");
+            var info = seitenContainer.add("panel");
             info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
             info.add("statictext", undefined, "Datei: " + datei.name);
             info.add("statictext", undefined, "Datens\u00e4tze: " + csvDaten.anzahl);
             info.add("statictext", undefined, "Spalten: " + csvDaten.spalten.length);
 
-            var vorschauBereich = dlg.add("panel");
+            var vorschauBereich = seitenContainer.add("panel");
             vorschauBereich.text = "Vorschau \u2013 erste 10 Datens\u00e4tze";
             vorschauBereich.orientation = "column"; vorschauBereich.alignChildren = ["fill", "top"]; vorschauBereich.margins = 15;
 
@@ -1408,9 +1426,9 @@
                     eintrag.subItems[spalte - 1].text = wert;
                 }
             }
-            dlg.add("statictext", undefined, max + " von " + csvDaten.anzahl + " Datens\u00e4tzen werden angezeigt.");
+            seitenContainer.add("statictext", undefined, max + " von " + csvDaten.anzahl + " Datens\u00e4tzen werden angezeigt.");
 
-            var buttons = dlg.add("group"); buttons.alignment = "right";
+            var buttons = seitenContainer.add("group"); buttons.alignment = "right";
             var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
             var weiter = buttons.add("button", undefined, "Weiter");
             zurueck.onClick = function(){ dlg.close(1); };
@@ -1421,8 +1439,8 @@
         function zeigeMappingSeite(vorhandenesMapping) {
             leeren();
             dlg.text = "Mailing-Assistant \u2013 Spaltenzuordnung";
-            dlg.add("statictext", undefined, "Spaltenzuordnung");
-            dlg.add("statictext", undefined, "Ordne jeder Kundenspalte ein Mailing-Feld zu. Nicht ben\u00f6tigte Spalten bleiben auf \u201eNicht verwenden\u201c.");
+            seitenContainer.add("statictext", undefined, "Spaltenzuordnung");
+            seitenContainer.add("statictext", undefined, "Ordne jeder Kundenspalte ein Mailing-Feld zu. Nicht ben\u00f6tigte Spalten bleiben auf \u201eNicht verwenden\u201c.");
 
             var interneFelder = ["Anrede","Titel","Vorname","Nachname","Firma","Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land","Adresszusatz","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
             var auswahlFelder = ["Nicht verwenden"];
@@ -1462,11 +1480,11 @@
                 return vorgeschlagenesFeld(spaltenname);
             }
 
-            var kopf=dlg.add("group"); kopf.orientation="row";
+            var kopf=seitenContainer.add("group"); kopf.orientation="row";
             var kq=kopf.add("statictext",undefined,"Kundenspalte"); kq.preferredSize.width=260;
             kopf.add("statictext",undefined,"Mailing-Feld");
 
-            var bereich=dlg.add("panel"); bereich.orientation="column"; bereich.alignChildren=["fill","top"]; bereich.margins=15; bereich.spacing=6;
+            var bereich=seitenContainer.add("panel"); bereich.orientation="column"; bereich.alignChildren=["fill","top"]; bereich.margins=15; bereich.spacing=6;
             var zuordnungen=[], verwendet={};
 
             for(i=0;i<csvDaten.spalten.length;i++){
@@ -1492,9 +1510,9 @@
             }
             for(i=0;i<zuordnungen.length;i++) zuordnungen[i].onChange=function(){pruefeDoppelte(this);};
 
-            dlg.add("statictext",undefined,"Vorschl\u00e4ge werden nur anhand eindeutiger Spaltennamen vorbelegt. Du kannst jede Zuordnung \u00e4ndern.");
+            seitenContainer.add("statictext",undefined,"Vorschl\u00e4ge werden nur anhand eindeutiger Spaltennamen vorbelegt. Du kannst jede Zuordnung \u00e4ndern.");
 
-            var buttons=dlg.add("group"); buttons.alignment="right";
+            var buttons=seitenContainer.add("group"); buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeVorschauSeite();};
@@ -1511,8 +1529,8 @@
         function zeigeAdressSeite(mapping) {
             leeren();
             dlg.text="Mailing-Assistant \u2013 Adressvorschau";
-            dlg.add("statictext",undefined,"Postalische Adressvorschau");
-            dlg.add("statictext",undefined,"W\u00e4hle links einen Datensatz aus. Rechts siehst du die zusammengesetzte postalische Anschrift.");
+            seitenContainer.add("statictext",undefined,"Postalische Adressvorschau");
+            seitenContainer.add("statictext",undefined,"W\u00e4hle links einen Datensatz aus. Rechts siehst du die zusammengesetzte postalische Anschrift.");
 
             function postalischeAdresse(datensatz){
                 var zeilen=[];
@@ -1531,7 +1549,7 @@
             }
 
             var max=Math.min(10,csvDaten.datensaetze.length);
-            var bereich=dlg.add("panel"); bereich.text="Erste 10 postalische Anschriften"; bereich.orientation="row"; bereich.alignChildren=["fill","fill"]; bereich.margins=15; bereich.spacing=12;
+            var bereich=seitenContainer.add("panel"); bereich.text="Erste 10 postalische Anschriften"; bereich.orientation="row"; bereich.alignChildren=["fill","fill"]; bereich.margins=15; bereich.spacing=12;
             var liste=bereich.add("listbox",undefined,[],{multiselect:false}); liste.preferredSize=[250,300];
             var vorschau=bereich.add("edittext",undefined,"",{multiline:true,scrolling:true,readonly:true}); vorschau.preferredSize=[360,300];
             var i;
@@ -1544,9 +1562,9 @@
             }
             function update(){if(!liste.selection){vorschau.text="";return;}vorschau.text=postalischeAdresse(csvDaten.datensaetze[liste.selection.index]);}
             liste.onChange=update; if(max>0){liste.selection=0;update();} else vorschau.text="Keine Datens\u00e4tze vorhanden.";
-            dlg.add("statictext",undefined,max+" von "+csvDaten.anzahl+" Datens\u00e4tzen stehen zur Vorschau bereit.");
+            seitenContainer.add("statictext",undefined,max+" von "+csvDaten.anzahl+" Datens\u00e4tzen stehen zur Vorschau bereit.");
 
-            var buttons=dlg.add("group");buttons.alignment="right";
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeMappingSeite(mapping);};
@@ -1560,10 +1578,10 @@
             var protokoll=sichereTextbereinigungAnwenden(csvDaten);
             var p=pruefungen(mapping);
 
-            dlg.add("statictext",undefined,"Sichere Textbereinigung");
-            dlg.add("statictext",undefined,"Bereinigt werden nur eindeutige Formatierungsfehler: Rand-Leerzeichen, Mehrfach-Leerzeichen, Tabs und Zeilenumbr\u00fcche.");
+            seitenContainer.add("statictext",undefined,"Sichere Textbereinigung");
+            seitenContainer.add("statictext",undefined,"Bereinigt werden nur eindeutige Formatierungsfehler: Rand-Leerzeichen, Mehrfach-Leerzeichen, Tabs und Zeilenumbr\u00fcche.");
 
-            var info=dlg.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Automatisch bereinigte Felder: "+protokoll.length);
             info.add("statictext",undefined,"Problematische/versteckte Zeichen erkannt: "+p.problem.length);
             info.add("statictext",undefined,"PLZ-Pr\u00fcfhinweise: "+p.plz.length);
@@ -1572,22 +1590,22 @@
             info.add("statictext",undefined,"Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
 
             if(p.plz.length>0){
-                var plzB=dlg.add("panel");plzB.text="Pr\u00fcfhinweise \u2013 deutsche PLZ";plzB.orientation="column";plzB.alignChildren=["fill","top"];plzB.margins=15;
+                var plzB=seitenContainer.add("panel");plzB.text="Pr\u00fcfhinweise \u2013 deutsche PLZ";plzB.orientation="column";plzB.alignChildren=["fill","top"];plzB.margins=15;
                 var plzL=plzB.add("listbox",undefined,[],{numberOfColumns:4,showHeaders:true,columnTitles:["Datensatz","PLZ","Land","Hinweis"],columnWidths:[70,90,110,320]});plzL.preferredSize=[620,120];
                 var i,ent;for(i=0;i<Math.min(20,p.plz.length);i++){ent=plzL.add("item",String(p.plz[i].datensatz));ent.subItems[0].text=p.plz[i].plz==""?"[leer]":p.plz[i].plz;ent.subItems[1].text=p.plz[i].land==""?"[leer = DE]":p.plz[i].land;ent.subItems[2].text=p.plz[i].hinweis;}
             }
             if(p.postal.length>0){
-                var pb=dlg.add("panel");pb.text="Pr\u00fcfhinweise \u2013 postalische Pflichtfelder";pb.orientation="column";pb.alignChildren=["fill","top"];pb.margins=15;
+                var pb=seitenContainer.add("panel");pb.text="Pr\u00fcfhinweise \u2013 postalische Pflichtfelder";pb.orientation="column";pb.alignChildren=["fill","top"];pb.margins=15;
                 var pl=pb.add("listbox",undefined,[],{numberOfColumns:5,showHeaders:true,columnTitles:["Datensatz","Empf\u00e4nger","Anschrift","PLZ / Ort","Hinweis"],columnWidths:[70,150,170,130,300]});pl.preferredSize=[850,130];
                 var j,e;for(j=0;j<Math.min(20,p.postal.length);j++){e=pl.add("item",String(p.postal[j].datensatz));e.subItems[0].text=p.postal[j].empfaenger==""?"[leer]":p.postal[j].empfaenger;e.subItems[1].text=p.postal[j].anschrift==""?"[leer]":p.postal[j].anschrift;e.subItems[2].text=p.postal[j].ort==""?"[leer]":p.postal[j].ort;e.subItems[3].text=p.postal[j].hinweis;}
             }
             if(p.dubletten.length>0){
-                var db=dlg.add("panel");db.text="Pr\u00fcfhinweise \u2013 eindeutige Dubletten";db.orientation="column";db.alignChildren=["fill","top"];db.margins=15;
+                var db=seitenContainer.add("panel");db.text="Pr\u00fcfhinweise \u2013 eindeutige Dubletten";db.orientation="column";db.alignChildren=["fill","top"];db.margins=15;
                 var dl=db.add("listbox",undefined,[],{numberOfColumns:5,showHeaders:true,columnTitles:["Datensatz","Dublette von","Empf\u00e4nger","Anschrift","PLZ / Ort"],columnWidths:[70,90,180,190,150]});dl.preferredSize=[760,120];
                 var k,de;for(k=0;k<Math.min(20,p.dubletten.length);k++){de=dl.add("item",String(p.dubletten[k].datensatz));de.subItems[0].text=String(p.dubletten[k].original);de.subItems[1].text=p.dubletten[k].empfaenger;de.subItems[2].text=p.dubletten[k].anschrift;de.subItems[3].text=p.dubletten[k].ort;}
             }
 
-            var buttons=dlg.add("group");buttons.alignment="right";
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeAdressSeite(mapping);};
@@ -1609,25 +1627,25 @@
                 sichtbar.push(auff[i]);
             }
 
-            dlg.add("statictext",undefined,"Datensatzfreigabe");
-            dlg.add("statictext",undefined,nurOffene?"Hier werden nur noch offene Datens\u00e4tze angezeigt.":"Auff\u00e4llige Datens\u00e4tze werden nicht automatisch verworfen. Lege f\u00fcr jeden Datensatz fest, wie er behandelt werden soll.");
+            seitenContainer.add("statictext",undefined,"Datensatzfreigabe");
+            seitenContainer.add("statictext",undefined,nurOffene?"Hier werden nur noch offene Datens\u00e4tze angezeigt.":"Auff\u00e4llige Datens\u00e4tze werden nicht automatisch verworfen. Lege f\u00fcr jeden Datensatz fest, wie er behandelt werden soll.");
             if(letzteNachricht!=""){zeigeNachricht(letzteNachricht);letzteNachricht="";}
 
-            var info=dlg.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Gesamte Datens\u00e4tze: "+csvDaten.anzahl);
             info.add("statictext",undefined,(nurOffene?"Offene Datens\u00e4tze: ":"Auff\u00e4llige Datens\u00e4tze: ")+sichtbar.length);
             info.add("statictext",undefined,"Unauff\u00e4llige Datens\u00e4tze werden automatisch als \u201e\u00dcbernehmen\u201c behandelt.");
 
             var auswahl=[];
             if(sichtbar.length>0){
-                var kopf=dlg.add("group");kopf.orientation="row";
+                var kopf=seitenContainer.add("group");kopf.orientation="row";
                 var a=kopf.add("statictext",undefined,"Datensatz");a.preferredSize.width=70;
                 var b=kopf.add("statictext",undefined,"Empf\u00e4nger");b.preferredSize.width=180;
                 var cc=kopf.add("statictext",undefined,"Pr\u00fcfgrund");cc.preferredSize.width=420;
                 var d=kopf.add("statictext",undefined,"Status");d.preferredSize.width=120;
                 kopf.add("statictext",undefined,"Aktion");
 
-                var panel=dlg.add("panel");panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=12;panel.spacing=5;
+                var panel=seitenContainer.add("panel");panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=12;panel.spacing=5;
                 for(i=0;i<sichtbar.length;i++){
                     var nr=sichtbar[i].datensatz,ds=csvDaten.datensaetze[nr-1];
                     var emp=verbindeTeile([wertAusDatensatz(mapping,ds,"Firma"),wertAusDatensatz(mapping,ds,"Vorname"),wertAusDatensatz(mapping,ds,"Nachname")]);if(emp=="")emp="[ohne Empf\u00e4nger]";
@@ -1648,9 +1666,9 @@
                     };
                     auswahl.push({datensatz:nr,dropdown:dd});
                 }
-            } else dlg.add("statictext",undefined,"Keine offenen auff\u00e4lligen Datens\u00e4tze vorhanden.");
+            } else seitenContainer.add("statictext",undefined,"Keine offenen auff\u00e4lligen Datens\u00e4tze vorhanden.");
 
-            var buttons=dlg.add("group");buttons.alignment="right";
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeBereinigungSeite(mapping);};
@@ -1669,8 +1687,8 @@
             leeren();
             dlg.text="Mailing-Assistant \u2013 Datensatz "+nr+" bearbeiten";
             var datensatz=csvDaten.datensaetze[nr-1];
-            dlg.add("statictext",undefined,"Datensatz "+nr+" bearbeiten");
-            dlg.add("statictext",undefined,"Die Originaldatei bleibt unver\u00e4ndert. Ge\u00e4ndert wird nur die interne Arbeitskopie dieses Mailing-Auftrags.");
+            seitenContainer.add("statictext",undefined,"Datensatz "+nr+" bearbeiten");
+            seitenContainer.add("statictext",undefined,"Die Originaldatei bleibt unver\u00e4ndert. Ge\u00e4ndert wird nur die interne Arbeitskopie dieses Mailing-Auftrags.");
 
             function fehlerfelder(){
                 var fehler={};
@@ -1685,7 +1703,7 @@
                 return fehler;
             }
             var fehler=fehlerfelder();
-            var formular=dlg.add("panel");formular.orientation="column";formular.alignChildren=["fill","top"];formular.margins=15;formular.spacing=8;
+            var formular=seitenContainer.add("panel");formular.orientation="column";formular.alignChildren=["fill","top"];formular.margins=15;formular.spacing=8;
             var felder=["Firma","Anrede","Titel","Vorname","Nachname","Adresszusatz","Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land"];
             var eingaben=[],i;
             for(i=0;i<felder.length;i++){
@@ -1701,7 +1719,7 @@
                 eingaben.push({feld:feld,edit:edit});
             }
 
-            var buttons=dlg.add("group");buttons.alignment="right";
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var abbrechen=buttons.add("button",undefined,"Abbrechen");
             var speichern=buttons.add("button",undefined,"Speichern");
             abbrechen.onClick=function(){zeigeFreigabeSeite(mapping,nurOffene);};
@@ -1720,13 +1738,13 @@
             leeren();dlg.text="Mailing-Assistant \u2013 Freigabe\u00fcbersicht";
             var status=csvDaten.freigabestatus||{},ue=0,aus=0,pr=0,offen=[],i;
             for(i=1;i<=csvDaten.anzahl;i++){var w=status[i]||"\u00dcbernehmen";if(w=="\u00dcbernehmen")ue++;else if(w=="Ausschlie\u00dfen")aus++;else{pr++;offen.push(i);}}
-            dlg.add("statictext",undefined,"Freigabe\u00fcbersicht");
-            var info=dlg.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            seitenContainer.add("statictext",undefined,"Freigabe\u00fcbersicht");
+            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Gesamte Datens\u00e4tze: "+csvDaten.anzahl);
             info.add("statictext",undefined,"\u00dcbernehmen: "+ue);info.add("statictext",undefined,"Ausschlie\u00dfen: "+aus);info.add("statictext",undefined,"Pr\u00fcfen: "+pr);
-            if(pr>0){dlg.add("statictext",undefined,"Noch offen: Datensatz "+offen.join(", "));dlg.add("statictext",undefined,"Der Mailing-Auftrag ist noch nicht vollst\u00e4ndig freigegeben.");}
-            else dlg.add("statictext",undefined,"Alle Datens\u00e4tze sind entschieden. Der Mailing-Auftrag kann weiterverarbeitet werden.");
-            var buttons=dlg.add("group");buttons.alignment="right";
+            if(pr>0){seitenContainer.add("statictext",undefined,"Noch offen: Datensatz "+offen.join(", "));seitenContainer.add("statictext",undefined,"Der Mailing-Auftrag ist noch nicht vollst\u00e4ndig freigegeben.");}
+            else seitenContainer.add("statictext",undefined,"Alle Datens\u00e4tze sind entschieden. Der Mailing-Auftrag kann weiterverarbeitet werden.");
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,pr>0?"Offene Datens\u00e4tze pr\u00fcfen":"Weiter");
             zurueck.onClick=function(){zeigeFreigabeSeite(mapping,false);};
@@ -1738,16 +1756,16 @@
             leeren();dlg.text="Mailing-Assistant \u2013 Finale Freigabe";
             var status=csvDaten.freigabestatus||{},frei=[],aus=[],offen=[],i;
             for(i=1;i<=csvDaten.anzahl;i++){var w=status[i]||"\u00dcbernehmen";if(w=="\u00dcbernehmen")frei.push(i);else if(w=="Ausschlie\u00dfen")aus.push(i);else offen.push(i);}
-            dlg.add("statictext",undefined,"Finale Freigabe");
-            var info=dlg.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            seitenContainer.add("statictext",undefined,"Finale Freigabe");
+            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Gesamte Datens\u00e4tze: "+csvDaten.anzahl);
             info.add("statictext",undefined,"Freigegebene Auflage: "+frei.length);
             info.add("statictext",undefined,"Ausgeschlossen: "+aus.length);
             info.add("statictext",undefined,"Noch offen: "+offen.length);
-            if(aus.length>0)dlg.add("statictext",undefined,"Ausgeschlossene Datens\u00e4tze: "+aus.join(", "));
-            if(offen.length>0)dlg.add("statictext",undefined,"Offene Datens\u00e4tze: "+offen.join(", "));
-            else{dlg.add("statictext",undefined,"Alle Datens\u00e4tze sind entschieden.");dlg.add("statictext",undefined,"Die freigegebene Auflage betr\u00e4gt "+frei.length+".");}
-            var buttons=dlg.add("group");buttons.alignment="right";
+            if(aus.length>0)seitenContainer.add("statictext",undefined,"Ausgeschlossene Datens\u00e4tze: "+aus.join(", "));
+            if(offen.length>0)seitenContainer.add("statictext",undefined,"Offene Datens\u00e4tze: "+offen.join(", "));
+            else{seitenContainer.add("statictext",undefined,"Alle Datens\u00e4tze sind entschieden.");seitenContainer.add("statictext",undefined,"Die freigegebene Auflage betr\u00e4gt "+frei.length+".");}
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,offen.length>0?"Offene Datens\u00e4tze pr\u00fcfen":"Weiter zur Mailing-Verarbeitung");
             zurueck.onClick=function(){zeigeFreigabeUebersichtSeite(mapping);};
@@ -1761,11 +1779,11 @@
         function zeigeMailingSeite(mapping) {
             leeren();dlg.text="Mailing-Assistant \u2013 Mailing-Verarbeitung";
             var frei=csvDaten.freigegebeneDatensatznummern||[],aus=csvDaten.ausgeschlosseneDatensatznummern||[];
-            dlg.add("statictext",undefined,"Mailing-Verarbeitung");
-            dlg.add("statictext",undefined,"Vorschau der freigegebenen Datens\u00e4tze. Ausgeschlossene Datens\u00e4tze sind hier bereits entfernt.");
-            var info=dlg.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+            seitenContainer.add("statictext",undefined,"Mailing-Verarbeitung");
+            seitenContainer.add("statictext",undefined,"Vorschau der freigegebenen Datens\u00e4tze. Ausgeschlossene Datens\u00e4tze sind hier bereits entfernt.");
+            var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Freigegebene Auflage: "+frei.length);info.add("statictext",undefined,"Ausgeschlossen: "+aus.length);
-            var bereich=dlg.add("panel");bereich.text="Produktionsvorschau \u2013 erste 20 freigegebene Datens\u00e4tze";bereich.orientation="column";bereich.alignChildren=["fill","top"];bereich.margins=15;
+            var bereich=seitenContainer.add("panel");bereich.text="Produktionsvorschau \u2013 erste 20 freigegebene Datens\u00e4tze";bereich.orientation="column";bereich.alignChildren=["fill","top"];bereich.margins=15;
             var liste=bereich.add("listbox",undefined,[],{numberOfColumns:5,showHeaders:true,columnTitles:["Datensatz","Empf\u00e4nger","Anschrift","PLZ / Ort","Land"],columnWidths:[70,200,220,160,120]});liste.preferredSize=[800,320];
             var max=Math.min(20,frei.length),i;
             for(i=0;i<max;i++){
@@ -1779,8 +1797,8 @@
                 var land=wertAusDatensatz(mapping,ds,"Land");if(land=="")land="Deutschland";
                 var en=liste.add("item",String(nr));en.subItems[0].text=emp;en.subItems[1].text=ansch;en.subItems[2].text=po;en.subItems[3].text=land;
             }
-            dlg.add("statictext",undefined,max+" von "+frei.length+" freigegebenen Datens\u00e4tzen werden angezeigt.");
-            var buttons=dlg.add("group");buttons.alignment="right";
+            seitenContainer.add("statictext",undefined,max+" von "+frei.length+" freigegebenen Datens\u00e4tzen werden angezeigt.");
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeFinaleFreigabeSeite(mapping);};
@@ -1790,25 +1808,25 @@
 
         function zeigeAusgabeSeite(mapping) {
             leeren();dlg.text="Mailing-Assistant \u2013 Produktionsausgabe";
-            dlg.add("statictext",undefined,"Produktionsausgabe ausw\u00e4hlen");
-            dlg.add("statictext",undefined,"Lege fest, wie die freigegebenen Mailingdaten weiterverarbeitet werden sollen.");
-            var bereich=dlg.add("panel");bereich.orientation="column";bereich.alignChildren=["left","top"];bereich.margins=15;bereich.spacing=10;
+            seitenContainer.add("statictext",undefined,"Produktionsausgabe ausw\u00e4hlen");
+            seitenContainer.add("statictext",undefined,"Lege fest, wie die freigegebenen Mailingdaten weiterverarbeitet werden sollen.");
+            var bereich=seitenContainer.add("panel");bereich.orientation="column";bereich.alignChildren=["left","top"];bereich.margins=15;bereich.spacing=10;
             var r1=bereich.add("radiobutton",undefined,"InDesign \u2013 Adressdaten f\u00fcr Datenzusammenf\u00fchrung");
             var r2=bereich.add("radiobutton",undefined,"CSV \u2013 bereinigte und freigegebene Datens\u00e4tze");
             var r3=bereich.add("radiobutton",undefined,"XLSX \u2013 bereinigte und freigegebene Datens\u00e4tze");
             var r4=bereich.add("radiobutton",undefined,"Nur Adressliste / Kontrollausgabe");
             var akt=csvDaten.produktionsausgabe||"InDesign";r1.value=akt=="InDesign";r2.value=akt=="CSV";r3.value=akt=="XLSX";r4.value=akt=="Adressliste";
-            dlg.add("statictext",undefined,"In diesem Schritt wird noch keine Datei erzeugt. Wir legen nur die gew\u00fcnschte Ausgabe fest.");
-            var buttons=dlg.add("group");buttons.alignment="right";
+            seitenContainer.add("statictext",undefined,"In diesem Schritt wird noch keine Datei erzeugt. Wir legen nur die gew\u00fcnschte Ausgabe fest.");
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var fertig=buttons.add("button",undefined,"Weiter");
             zurueck.onClick=function(){zeigeMailingSeite(mapping);};
             fertig.onClick=function(){
                 csvDaten.produktionsausgabe=r1.value?"InDesign":(r2.value?"CSV":(r3.value?"XLSX":"Adressliste"));
                 leeren();dlg.text="Mailing-Assistant \u2013 Produktionsausgabe";
-                dlg.add("statictext",undefined,"Produktionsausgabe gew\u00e4hlt: "+csvDaten.produktionsausgabe);
-                dlg.add("statictext",undefined,"Im n\u00e4chsten Schritt bauen wir genau diese Ausgabe.");
-                var b=dlg.add("group");b.alignment="right";var schliessen=b.add("button",undefined,"Schlie\u00dfen");schliessen.onClick=function(){dlg.close(0);};
+                seitenContainer.add("statictext",undefined,"Produktionsausgabe gew\u00e4hlt: "+csvDaten.produktionsausgabe);
+                seitenContainer.add("statictext",undefined,"Im n\u00e4chsten Schritt bauen wir genau diese Ausgabe.");
+                var b=seitenContainer.add("group");b.alignment="right";var schliessen=b.add("button",undefined,"Schlie\u00dfen");schliessen.onClick=function(){dlg.close(0);};
                 neuLayouten();
             };
             neuLayouten();
