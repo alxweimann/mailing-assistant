@@ -134,10 +134,10 @@
         vb+="For Each ws In wb.Worksheets\r\n stm.WriteText ws.Name & vbCrLf\r\nNext\r\n";
         vb+="stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\nstm.Close\r\nwb.Close False\r\nxl.Quit\r\n";
         app.doScript(vb,ScriptLanguage.VISUAL_BASIC);
-        var f=File(ausgabe);if(!f.exists)throw new Error("Die Excel-Datei konnte nicht geöffnet werden. Ist Microsoft Excel installiert?");
-        f.encoding="UTF-8";if(!f.open("r"))throw new Error("Die Tabellenblätter konnten nicht gelesen werden.");var t=f.read();f.close();try{f.remove();}catch(e){}
+        var f=File(ausgabe);if(!f.exists)throw new Error("Die Excel-Datei konnte nicht ge\u00f6ffnet werden. Ist Microsoft Excel installiert?");
+        f.encoding="UTF-8";if(!f.open("r"))throw new Error("Die Tabellenbl\u00e4tter konnten nicht gelesen werden.");var t=f.read();f.close();try{f.remove();}catch(e){}
         var a=t.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n"),r=[],i;for(i=0;i<a.length;i++)if(a[i]!="")r.push(a[i]);
-        if(!r.length)throw new Error("Die Excel-Datei enthält keine Tabellenblätter.");return r;
+        if(!r.length)throw new Error("Die Excel-Datei enth\u00e4lt keine Tabellenbl\u00e4tter.");return r;
     }
 
     function xlsxZellwertDekodieren(text) {
@@ -164,11 +164,11 @@
         var f=File(ausgabe);if(!f.exists)throw new Error("Das Excel-Tabellenblatt konnte nicht gelesen werden.");f.encoding="UTF-8";if(!f.open("r"))throw new Error("Die Excel-Daten konnten nicht gelesen werden.");
         var t=f.read();f.close();try{f.remove();}catch(e){}var z=t.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n"),m=[],i,j,q;
         for(i=0;i<z.length;i++){if(z[i]=="")continue;q=z[i].split("|");for(j=0;j<q.length;j++)q[j]=xlsxZellwertDekodieren(q[j]);m.push(q);}
-        if(!m.length)throw new Error("Das Excel-Tabellenblatt enthält keine Daten.");var first=-1;for(i=0;i<m.length;i++){for(j=0;j<m[i].length;j++){if(trimText(m[i][j])!=""){first=i;break;}}if(first>=0)break;}if(first<0)throw new Error("Das Excel-Tabellenblatt enthält keine befüllten Zellen.");if(first>0)m=m.slice(first);return{rohzeilen:m};
+        if(!m.length)throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine Daten.");var first=-1;for(i=0;i<m.length;i++){for(j=0;j<m[i].length;j++){if(trimText(m[i][j])!=""){first=i;break;}}if(first>=0)break;}if(first<0)throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine bef\u00fcllten Zellen.");if(first>0)m=m.slice(first);return{rohzeilen:m};
     }
 
     function xlsxZeileIstWahrscheinlichUeberschrift(zeile){
-        var bekannte=["anrede","titel","vorname","nachname","firma","straße","strasse","hausnummer","plz","ort","land","adresszusatz","e-mail","email","telefon","kundennummer","selektionsmerkmal","sonstiges"],treffer=0,i,j,w;
+        var bekannte=["anrede","titel","vorname","nachname","firma","stra\u00dfe","strasse","hausnummer","plz","ort","land","adresszusatz","e-mail","email","telefon","kundennummer","selektionsmerkmal","sonstiges"],treffer=0,i,j,w;
         for(i=0;i<zeile.length;i++){w=trimText(zeile[i]).toLowerCase();for(j=0;j<bekannte.length;j++){if(bekannte[j]===w){treffer++;break;}}}
         return treffer>=1;
     }
@@ -299,39 +299,39 @@
     }
 
     function zeigeDatenquelle() {
-        var dlg=new Window("dialog","Mailing-Assistant – Datenquelle");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        var dlg=new Window("dialog","Mailing-Assistant \u2013 Datenquelle");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
         dlg.add("statictext",undefined,"Datenquelle");var bereich=dlg.add("panel");bereich.orientation="column";bereich.alignChildren=["fill","top"];bereich.margins=15;bereich.spacing=10;
-        bereich.add("statictext",undefined,"Excel- oder CSV-Datei für diesen Mailing-Auftrag auswählen.");
-        var dateizeile=bereich.add("group");dateizeile.orientation="row";dateizeile.alignChildren=["fill","center"];var dateifeld=dateizeile.add("edittext",undefined,"");dateifeld.characters=42;dateifeld.enabled=false;var dateiAuswaehlen=dateizeile.add("button",undefined,"Datei auswählen...");
-        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");weiter.enabled=false;var ausgewaehlteDatei=null;
-        dateiAuswaehlen.onClick=function(){var datei=File.openDialog("Mailing-Datendatei auswählen","Mailing-Dateien:*.xlsx;*.csv");if(datei){ausgewaehlteDatei=datei;dateifeld.text=datei.fsName;weiter.enabled=true;}};
+        bereich.add("statictext",undefined,"Excel- oder CSV-Datei f\u00fcr diesen Mailing-Auftrag ausw\u00e4hlen.");
+        var dateizeile=bereich.add("group");dateizeile.orientation="row";dateizeile.alignChildren=["fill","center"];var dateifeld=dateizeile.add("edittext",undefined,"");dateifeld.characters=42;dateifeld.enabled=false;var dateiAuswaehlen=dateizeile.add("button",undefined,"Datei ausw\u00e4hlen...");
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zur\u00fcck");var weiter=buttons.add("button",undefined,"Weiter");weiter.enabled=false;var ausgewaehlteDatei=null;
+        dateiAuswaehlen.onClick=function(){var datei=File.openDialog("Mailing-Datendatei ausw\u00e4hlen","Mailing-Dateien:*.xlsx;*.csv");if(datei){ausgewaehlteDatei=datei;dateifeld.text=datei.fsName;weiter.enabled=true;}};
         zurueck.onClick=function(){dlg.close(1);};
         weiter.onClick=function(){if(!ausgewaehlteDatei)return;try{if(/\.xlsx$/i.test(ausgewaehlteDatei.name)){var blaetter=xlsxTabellenblaetterLesen(ausgewaehlteDatei);dlg.close(2);if(blaetter.length==1){var roh=xlsxDatenLesen(ausgewaehlteDatei,blaetter[0]);zeigeXlsxUeberschriftenentscheidung(ausgewaehlteDatei,blaetter[0],roh);}else zeigeXlsxBlattauswahl(ausgewaehlteDatei,blaetter);}else{var csvDaten=csvDateiLesen(ausgewaehlteDatei);dlg.close(2);zeigeCsvVorschau(ausgewaehlteDatei,csvDaten);}}catch(e){alert("Die Datei konnte nicht gelesen werden.\n\nFehler: "+e);}};
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1)zeigeNeuenAuftrag();
     }
 
     function zeigeXlsxBlattauswahl(datei,blaetter){
-        var dlg=new Window("dialog","Mailing-Assistant – Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
-        dlg.add("statictext",undefined,"Excel-Tabellenblatt auswählen");
-        dlg.add("statictext",undefined,"Diese Datei enthält mehrere Tabellenblätter. Bitte wähle das Blatt mit den Mailingdaten.");
+        var dlg=new Window("dialog","Mailing-Assistant \u2013 Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        dlg.add("statictext",undefined,"Excel-Tabellenblatt ausw\u00e4hlen");
+        dlg.add("statictext",undefined,"Diese Datei enth\u00e4lt mehrere Tabellenbl\u00e4tter. Bitte w\u00e4hle das Blatt mit den Mailingdaten.");
         var liste=dlg.add("listbox",undefined,[],{multiselect:false});liste.preferredSize=[420,180];
         var i;for(i=0;i<blaetter.length;i++)liste.add("item",blaetter[i]);if(blaetter.length)liste.selection=0;
-        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zur\u00fcck");var weiter=buttons.add("button",undefined,"Weiter");
         zurueck.onClick=function(){dlg.close(1);};
-        weiter.onClick=function(){if(!liste.selection){alert("Bitte ein Tabellenblatt auswählen.");return;}var sheet=liste.selection.text;dlg.close(2);try{var roh=xlsxDatenLesen(datei,sheet);zeigeXlsxUeberschriftenentscheidung(datei,sheet,roh);}catch(e){alert("Das Tabellenblatt konnte nicht gelesen werden.\n\nFehler: "+e);}};
+        weiter.onClick=function(){if(!liste.selection){alert("Bitte ein Tabellenblatt ausw\u00e4hlen.");return;}var sheet=liste.selection.text;dlg.close(2);try{var roh=xlsxDatenLesen(datei,sheet);zeigeXlsxUeberschriftenentscheidung(datei,sheet,roh);}catch(e){alert("Das Tabellenblatt konnte nicht gelesen werden.\n\nFehler: "+e);}};
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1)zeigeDatenquelle();
     }
 
     function zeigeXlsxUeberschriftenentscheidung(datei,blatt,roh){
         var wahrscheinlich=xlsxZeileIstWahrscheinlichUeberschrift(roh.rohzeilen[0]);
-        var dlg=new Window("dialog","Mailing-Assistant – Excel-Spalten");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        var dlg=new Window("dialog","Mailing-Assistant \u2013 Excel-Spalten");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
         dlg.add("statictext",undefined,"Excel-Daten erkannt");dlg.add("statictext",undefined,"Tabellenblatt: "+blatt);
-        dlg.add("statictext",undefined,wahrscheinlich?"Die erste Zeile sieht nach Spaltenüberschriften aus.":"Es konnten keine eindeutigen Spaltenüberschriften erkannt werden.");
-        dlg.add("statictext",undefined,"Bitte entscheiden – der Mailing-Assistant rät nicht automatisch.");
+        dlg.add("statictext",undefined,wahrscheinlich?"Die erste Zeile sieht nach Spalten\u00fcberschriften aus.":"Es konnten keine eindeutigen Spalten\u00fcberschriften erkannt werden.");
+        dlg.add("statictext",undefined,"Bitte entscheiden \u2013 der Mailing-Assistant r\u00e4t nicht automatisch.");
         var gruppe=dlg.add("group");gruppe.orientation="column";gruppe.alignChildren=["left","top"];
-        var mit=gruppe.add("radiobutton",undefined,"Erste Zeile enthält Spaltenüberschriften");var ohne=gruppe.add("radiobutton",undefined,"Keine Spaltenüberschriften vorhanden");
+        var mit=gruppe.add("radiobutton",undefined,"Erste Zeile enth\u00e4lt Spalten\u00fcberschriften");var ohne=gruppe.add("radiobutton",undefined,"Keine Spalten\u00fcberschriften vorhanden");
         if(wahrscheinlich)mit.value=true;else ohne.value=true;
-        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zur\u00fcck");var weiter=buttons.add("button",undefined,"Weiter");
         zurueck.onClick=function(){dlg.close(1);};
         weiter.onClick=function(){var daten=xlsxDatenInStruktur(roh,mit.value);dlg.close(2);zeigeCsvVorschau(datei,daten);};
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1){var blaetter=xlsxTabellenblaetterLesen(datei);if(blaetter.length==1)zeigeDatenquelle();else zeigeXlsxBlattauswahl(datei,blaetter);}
@@ -340,18 +340,18 @@
     function zeigeCsvVorschau(datei, csvDaten) {
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenvorschau");
         dlg.orientation = "column";     function zeigeXlsxBlattauswahl(datei,blaetter){
-        var dlg=new Window("dialog","Mailing-Assistant – Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
-        dlg.add("statictext",undefined,"Excel-Tabellenblatt auswählen");dlg.add("statictext",undefined,"Diese Datei enthält mehrere Tabellenblätter. Bitte wähle das Blatt mit den Mailingdaten.");
+        var dlg=new Window("dialog","Mailing-Assistant \u2013 Excel-Tabellenblatt");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        dlg.add("statictext",undefined,"Excel-Tabellenblatt ausw\u00e4hlen");dlg.add("statictext",undefined,"Diese Datei enth\u00e4lt mehrere Tabellenbl\u00e4tter. Bitte w\u00e4hle das Blatt mit den Mailingdaten.");
         var liste=dlg.add("listbox",undefined,[],{multiselect:false});liste.preferredSize=[420,180];var i;for(i=0;i<blaetter.length;i++)liste.add("item",blaetter[i]);if(blaetter.length)liste.selection=0;
-        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");
-        zurueck.onClick=function(){dlg.close(1);};weiter.onClick=function(){if(!liste.selection){alert("Bitte ein Tabellenblatt auswählen.");return;}var sheet=liste.selection.text;dlg.close(2);try{var roh=xlsxDatenLesen(datei,sheet);zeigeXlsxUeberschriftenentscheidung(datei,sheet,roh);}catch(e){alert("Das Tabellenblatt konnte nicht gelesen werden.\n\nFehler: "+e);}};
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zur\u00fcck");var weiter=buttons.add("button",undefined,"Weiter");
+        zurueck.onClick=function(){dlg.close(1);};weiter.onClick=function(){if(!liste.selection){alert("Bitte ein Tabellenblatt ausw\u00e4hlen.");return;}var sheet=liste.selection.text;dlg.close(2);try{var roh=xlsxDatenLesen(datei,sheet);zeigeXlsxUeberschriftenentscheidung(datei,sheet,roh);}catch(e){alert("Das Tabellenblatt konnte nicht gelesen werden.\n\nFehler: "+e);}};
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1)zeigeDatenquelle();
     }
     function zeigeXlsxUeberschriftenentscheidung(datei,blatt,roh){
-        var wahrscheinlich=xlsxZeileIstWahrscheinlichUeberschrift(roh.rohzeilen[0]),dlg=new Window("dialog","Mailing-Assistant – Excel-Spalten");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
-        dlg.add("statictext",undefined,"Excel-Daten erkannt");dlg.add("statictext",undefined,"Tabellenblatt: "+blatt);dlg.add("statictext",undefined,wahrscheinlich?"Die erste Zeile sieht nach Spaltenüberschriften aus.":"Es konnten keine eindeutigen Spaltenüberschriften erkannt werden.");dlg.add("statictext",undefined,"Bitte entscheiden – der Mailing-Assistant rät nicht automatisch.");
-        var gruppe=dlg.add("group");gruppe.orientation="column";gruppe.alignChildren=["left","top"];var mit=gruppe.add("radiobutton",undefined,"Erste Zeile enthält Spaltenüberschriften");var ohne=gruppe.add("radiobutton",undefined,"Keine Spaltenüberschriften vorhanden");if(wahrscheinlich)mit.value=true;else ohne.value=true;
-        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zurück");var weiter=buttons.add("button",undefined,"Weiter");zurueck.onClick=function(){dlg.close(1);};weiter.onClick=function(){var daten=xlsxDatenInStruktur(roh,mit.value);dlg.close(2);zeigeCsvVorschau(datei,daten);};
+        var wahrscheinlich=xlsxZeileIstWahrscheinlichUeberschrift(roh.rohzeilen[0]),dlg=new Window("dialog","Mailing-Assistant \u2013 Excel-Spalten");dlg.orientation="column";dlg.alignChildren=["fill","top"];dlg.spacing=12;dlg.margins=20;
+        dlg.add("statictext",undefined,"Excel-Daten erkannt");dlg.add("statictext",undefined,"Tabellenblatt: "+blatt);dlg.add("statictext",undefined,wahrscheinlich?"Die erste Zeile sieht nach Spalten\u00fcberschriften aus.":"Es konnten keine eindeutigen Spalten\u00fcberschriften erkannt werden.");dlg.add("statictext",undefined,"Bitte entscheiden \u2013 der Mailing-Assistant r\u00e4t nicht automatisch.");
+        var gruppe=dlg.add("group");gruppe.orientation="column";gruppe.alignChildren=["left","top"];var mit=gruppe.add("radiobutton",undefined,"Erste Zeile enth\u00e4lt Spalten\u00fcberschriften");var ohne=gruppe.add("radiobutton",undefined,"Keine Spalten\u00fcberschriften vorhanden");if(wahrscheinlich)mit.value=true;else ohne.value=true;
+        var buttons=dlg.add("group");buttons.alignment="right";var zurueck=buttons.add("button",undefined,"Zur\u00fcck");var weiter=buttons.add("button",undefined,"Weiter");zurueck.onClick=function(){dlg.close(1);};weiter.onClick=function(){var daten=xlsxDatenInStruktur(roh,mit.value);dlg.close(2);zeigeCsvVorschau(datei,daten);};
         dlg.center();var ergebnis=dlg.show();if(ergebnis==1){var blaetter=xlsxTabellenblaetterLesen(datei);if(blaetter.length==1)zeigeDatenquelle();else zeigeXlsxBlattauswahl(datei,blaetter);}
     }
 
