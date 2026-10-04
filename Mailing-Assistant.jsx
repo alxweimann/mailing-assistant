@@ -235,6 +235,96 @@
         return result;
     }
 
+    function zeigeMailingVerarbeitung(datei, csvDaten, mapping) {
+        var freigegeben = csvDaten.freigegebeneDatensatznummern || [];
+        var ausgeschlossen = csvDaten.ausgeschlosseneDatensatznummern || [];
+
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Mailing-Verarbeitung");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+        dlg.add("statictext", undefined, "Mailing-Verarbeitung");
+        dlg.add("statictext", undefined, "Vorschau der freigegebenen Datens\u00e4tze. Ausgeschlossene Datens\u00e4tze sind hier bereits entfernt.");
+
+        var info = dlg.add("panel");
+        info.orientation = "column";
+        info.alignChildren = ["left", "top"];
+        info.margins = 15;
+        info.spacing = 6;
+        info.add("statictext", undefined, "Freigegebene Auflage: " + freigegeben.length);
+        info.add("statictext", undefined, "Ausgeschlossen: " + ausgeschlossen.length);
+
+        var bereich = dlg.add("panel");
+        bereich.text = "Produktionsvorschau \u2013 erste 20 freigegebene Datens\u00e4tze";
+        bereich.orientation = "column";
+        bereich.alignChildren = ["fill", "top"];
+        bereich.margins = 15;
+
+        var liste = bereich.add("listbox", undefined, [], {
+            numberOfColumns: 5,
+            showHeaders: true,
+            columnTitles: ["Datensatz", "Empf\u00e4nger", "Anschrift", "PLZ / Ort", "Land"],
+            columnWidths: [70, 200, 220, 160, 120]
+        });
+        liste.preferredSize = [800, 320];
+
+        var max = Math.min(20, freigegeben.length);
+        var i;
+        for (i = 0; i < max; i++) {
+            var nr = freigegeben[i];
+            var ds = csvDaten.datensaetze[nr - 1];
+            var firma = mappingWert(csvDaten, mapping, ds, "Firma");
+            var person = verbindeTeile([
+                mappingWert(csvDaten, mapping, ds, "Anrede"),
+                mappingWert(csvDaten, mapping, ds, "Titel"),
+                mappingWert(csvDaten, mapping, ds, "Vorname"),
+                mappingWert(csvDaten, mapping, ds, "Nachname")
+            ]);
+            var empfaenger = firma != "" ? (person != "" ? firma + " / " + person : firma) : person;
+            if (empfaenger == "") empfaenger = "[ohne Empf\u00e4nger]";
+
+            var postfach = mappingWert(csvDaten, mapping, ds, "Postfach");
+            var anschrift = postfach != "" ? "Postfach " + postfach : verbindeTeile([
+                mappingWert(csvDaten, mapping, ds, "Stra\u00dfe"),
+                mappingWert(csvDaten, mapping, ds, "Hausnummer")
+            ]);
+
+            var plzOrt = verbindeTeile([
+                mappingWert(csvDaten, mapping, ds, "PLZ"),
+                mappingWert(csvDaten, mapping, ds, "Ort")
+            ]);
+
+            var land = mappingWert(csvDaten, mapping, ds, "Land");
+            if (land == "") land = "Deutschland";
+
+            var eintrag = liste.add("item", String(nr));
+            eintrag.subItems[0].text = empfaenger;
+            eintrag.subItems[1].text = anschrift;
+            eintrag.subItems[2].text = plzOrt;
+            eintrag.subItems[3].text = land;
+        }
+
+        dlg.add("statictext", undefined, max + " von " + freigegeben.length + " freigegebenen Datens\u00e4tzen werden angezeigt.");
+
+        var buttons = dlg.add("group");
+        buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+        var weiter = buttons.add("button", undefined, "Weiter");
+        zurueck.onClick = function(){ dlg.close(1); };
+        weiter.onClick = function(){ dlg.close(2); };
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1) {
+            zeigeFinaleFreigabe(datei, csvDaten, mapping);
+        } else if (ergebnis == 2) {
+            alert("Die freigegebenen Datens\u00e4tze sind korrekt gefiltert.\n\nAls n\u00e4chstes legen wir fest, welche Produktionsausgabe daraus erzeugt wird.");
+        }
+    }
+
     function zeigeFinaleFreigabe(datei, csvDaten, mapping) {
         var status = csvDaten.freigabestatus || {};
         var freigegeben = [];
@@ -306,7 +396,7 @@
         } else if (ergebnis == 3) {
             csvDaten.freigegebeneDatensatznummern = freigegeben;
             csvDaten.ausgeschlosseneDatensatznummern = ausgeschlossen;
-            alert("Freigabe abgeschlossen.\n\nFreigegebene Auflage: " + freigegeben.length + "\nAusgeschlossen: " + ausgeschlossen.length + "\n\nDie Daten sind jetzt f\u00fcr die Mailing-Verarbeitung vorbereitet.");
+            zeigeMailingVerarbeitung(datei, csvDaten, mapping);
         }
     }
 
