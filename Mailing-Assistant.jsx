@@ -598,9 +598,6 @@
                 try {
                     var rotHinweis = hinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [0.85, 0.2, 0.2], 1);
                     hinweis.graphics.foregroundColor = rotHinweis;
-
-                    var hellrot = edit.graphics.newBrush(ScriptUIGraphics.BrushType.SOLID_COLOR, [1, 0.93, 0.93]);
-                    edit.graphics.backgroundColor = hellrot;
                 } catch (e) {}
             } else {
                 var platzhalter = zeile.add("statictext", undefined, "");
