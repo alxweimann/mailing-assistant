@@ -1812,7 +1812,7 @@
                 return null;
             }
 
-            var exportFelder = ["Anrede","Titel","Vorname","Nachname","Firma","Adresszusatz","Straße","Hausnummer","Postfach","PLZ","Ort","Land","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
+            var exportFelder = ["Anrede","Titel","Vorname","Nachname","Firma","Adresszusatz","Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
             var i;
 
             function bereinigeExportWert(wert) {
@@ -1823,14 +1823,14 @@
             }
 
             function headerName(feld) {
-                if (feld == "Straße") return "Strasse";
+                if (feld == "Stra\u00dfe") return "Strasse";
                 if (feld == "E-Mail") return "E_Mail";
                 return feld;
             }
 
             function normalisiereExportSpaltenname(text) {
                 var wert = trimText(text).toLowerCase();
-                wert = wert.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+                wert = wert.replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/g, "ue").replace(/\u00df/g, "ss");
                 return wert.replace(/[^a-z0-9]/g, "");
             }
 
@@ -1847,7 +1847,7 @@
             function exportWert(datensatz, feld) {
                 // Straße bewusst direkt aus der erkannten Quellspalte lesen.
                 // Damit umgehen wir jede Mapping-/Alias-Abweichung im Export.
-                if (feld == "Straße" && strassenQuellIndex >= 0) {
+                if (feld == "Stra\u00dfe" && strassenQuellIndex >= 0) {
                     return strassenQuellIndex < datensatz.length ? trimText(datensatz[strassenQuellIndex]) : "";
                 }
 
@@ -1963,8 +1963,8 @@
                     info.add("statictext",undefined,"Freigegebene Datens\u00e4tze: "+ergebnis.datensaetze);
                     info.add("statictext",undefined,"Exportierte Spalten: "+ergebnis.felder);
                     info.add("statictext",undefined,"Datei: "+ergebnis.datei.fsName);
-                    info.add("statictext",undefined,"Diagnose Straße – Spaltenindex: "+ergebnis.strassenIndex);
-                    info.add("statictext",undefined,"Diagnose Straße – erster freigegebener Wert: "+(ergebnis.strassenBeispiel==""?"[leer]":ergebnis.strassenBeispiel));
+                    info.add("statictext",undefined,"Diagnose Stra\u00dfe \u2013 Spaltenindex: "+ergebnis.strassenIndex);
+                    info.add("statictext",undefined,"Diagnose Stra\u00dfe \u2013 erster freigegebener Wert: "+(ergebnis.strassenBeispiel==""?"[leer]":ergebnis.strassenBeispiel));
                     seitenContainer.add("statictext",undefined,"Format: UTF-8, tabulatorgetrennt. Die Datei kann direkt als Datenquelle in InDesign verwendet werden.");
 
                     var b=seitenContainer.add("group");b.alignment="right";
