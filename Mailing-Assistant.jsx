@@ -1859,8 +1859,32 @@
                 return "";
             }
 
+            function produktionsFelder(datensatz) {
+                var anrede = exportWert(datensatz, "Anrede");
+                var titel = exportWert(datensatz, "Titel");
+                var vorname = exportWert(datensatz, "Vorname");
+                var nachname = exportWert(datensatz, "Nachname");
+                var strasse = exportWert(datensatz, "Stra\u00dfe");
+                var hausnummer = exportWert(datensatz, "Hausnummer");
+                var postfach = exportWert(datensatz, "Postfach");
+                var plz = exportWert(datensatz, "PLZ");
+                var ort = exportWert(datensatz, "Ort");
+
+                var person = verbindeTeile([anrede, titel, vorname, nachname]);
+                var strassenzeile = postfach != "" ? "" : verbindeTeile([strasse, hausnummer]);
+                var postfachzeile = postfach != "" ? "Postfach " + postfach : "";
+                var plzOrt = verbindeTeile([plz, ort]);
+
+                return {
+                    person: person,
+                    strassenzeile: strassenzeile,
+                    postfachzeile: postfachzeile,
+                    plzOrt: plzOrt
+                };
+            }
+
             var zeilen = [];
-            var header = ["Datensatz"];
+            var header = ["Datensatz", "Person", "Strassenzeile", "Postfachzeile", "PLZ_Ort"];
             for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
             zeilen.push(header.join("\t"));
 
@@ -1868,7 +1892,14 @@
             for (r = 0; r < freigegeben.length; r++) {
                 var nr = freigegeben[r];
                 var ds = csvDaten.datensaetze[nr - 1];
-                var werte = [String(nr)];
+                var prod = produktionsFelder(ds);
+                var werte = [
+                    String(nr),
+                    bereinigeExportWert(prod.person),
+                    bereinigeExportWert(prod.strassenzeile),
+                    bereinigeExportWert(prod.postfachzeile),
+                    bereinigeExportWert(prod.plzOrt)
+                ];
                 for (i = 0; i < exportFelder.length; i++) {
                     var feld = exportFelder[i];
                     var wert = exportWert(ds, feld);
@@ -1908,20 +1939,10 @@
             ziel.write("\uFEFF" + zeilen.join("\r\n"));
             ziel.close();
 
-            var diagnoseStrasse = "";
-            if (strassenQuellIndex >= 0 && freigegeben.length > 0) {
-                var diagnoseDs = csvDaten.datensaetze[freigegeben[0] - 1];
-                if (diagnoseDs && strassenQuellIndex < diagnoseDs.length) {
-                    diagnoseStrasse = trimText(diagnoseDs[strassenQuellIndex]);
-                }
-            }
-
             return {
                 datei: ziel,
                 datensaetze: freigegeben.length,
-                felder: exportFelder.length + 1,
-                strassenIndex: strassenQuellIndex,
-                strassenBeispiel: diagnoseStrasse
+                felder: exportFelder.length + 5
             };
         }
 
@@ -1963,8 +1984,6 @@
                     info.add("statictext",undefined,"Freigegebene Datens\u00e4tze: "+ergebnis.datensaetze);
                     info.add("statictext",undefined,"Exportierte Spalten: "+ergebnis.felder);
                     info.add("statictext",undefined,"Datei: "+ergebnis.datei.fsName);
-                    info.add("statictext",undefined,"Diagnose Stra\u00dfe \u2013 Spaltenindex: "+ergebnis.strassenIndex);
-                    info.add("statictext",undefined,"Diagnose Stra\u00dfe \u2013 erster freigegebener Wert: "+(ergebnis.strassenBeispiel==""?"[leer]":ergebnis.strassenBeispiel));
                     seitenContainer.add("statictext",undefined,"Format: UTF-8, tabulatorgetrennt. Die Datei kann direkt als Datenquelle in InDesign verwendet werden.");
 
                     var b=seitenContainer.add("group");b.alignment="right";
