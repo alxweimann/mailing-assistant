@@ -82,10 +82,35 @@
 
         var zeileVersanddatum = formular.add("group");
         zeileVersanddatum.orientation = "row";
-        var labelVersanddatum = zeileVersanddatum.add("statictext", undefined, "Einlieferungs-/Versanddatum:");
+        var labelVersanddatum = zeileVersanddatum.add("statictext", undefined, "Versanddatum:");
         labelVersanddatum.preferredSize.width = 160;
         var feldVersanddatum = zeileVersanddatum.add("edittext", undefined, "");
         feldVersanddatum.characters = 30;
+
+        var zeileVersandart = formular.add("group");
+        zeileVersandart.orientation = "row";
+        var labelVersandart = zeileVersandart.add("statictext", undefined, "Versandart:");
+        labelVersandart.preferredSize.width = 160;
+        var feldVersandart = zeileVersandart.add("dropdownlist", undefined, ["Dialogpost", "Briefpost", "Sonstiges"]);
+        feldVersandart.preferredSize.width = 308;
+        feldVersandart.selection = 0;
+
+        var zeileSonstiges = formular.add("group");
+        zeileSonstiges.orientation = "row";
+        zeileSonstiges.visible = false;
+        var labelSonstiges = zeileSonstiges.add("statictext", undefined, "Sonstiges:");
+        labelSonstiges.preferredSize.width = 160;
+        var feldSonstiges = zeileSonstiges.add("edittext", undefined, "");
+        feldSonstiges.characters = 30;
+
+        feldVersandart.onChange = function () {
+            if (feldVersandart.selection && feldVersandart.selection.text == "Sonstiges") {
+                zeileSonstiges.visible = true;
+            } else {
+                zeileSonstiges.visible = false;
+            }
+            dlg.layout.layout(true);
+        };
 
         var buttons = dlg.add("group");
         buttons.alignment = "right";
@@ -93,7 +118,12 @@
         var weiter = buttons.add("button", undefined, "Weiter");
         zurueck.onClick = function () { dlg.close(1); };
         weiter.onClick = function () {
-            alert("Auftragsnummer: " + feldAuftrag.text + "\nKunde: " + feldKunde.text + "\nBezeichnung: " + feldBezeichnung.text + "\nProduktionsdatum: " + feldProduktionsdatum.text + "\nEinlieferungs-/Versanddatum: " + feldVersanddatum.text);
+            var versandartText = "";
+            if (feldVersandart.selection) { versandartText = feldVersandart.selection.text; }
+            if (versandartText == "Sonstiges" && feldSonstiges.text != "") {
+                versandartText = versandartText + ": " + feldSonstiges.text;
+            }
+            alert("Auftragsnummer: " + feldAuftrag.text + "\nKunde: " + feldKunde.text + "\nBezeichnung: " + feldBezeichnung.text + "\nProduktionsdatum: " + feldProduktionsdatum.text + "\nVersanddatum: " + feldVersanddatum.text + "\nVersandart: " + versandartText);
         };
         dlg.center();
         var ergebnis = dlg.show();
