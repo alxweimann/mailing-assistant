@@ -2182,6 +2182,17 @@
                 "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
             ];
 
+            var paare=csvDaten.aktuelleDublettenpaare||[];
+            var paarIndex=csvDaten.dublettenSeitenIndex||0;
+            var pi;
+            for(pi=0;pi<paare.length;pi++){
+                if(paare[pi].original==originalNr&&paare[pi].datensatz==dubletteNr){
+                    paarIndex=pi;
+                    break;
+                }
+            }
+            csvDaten.dublettenSeitenIndex=paarIndex;
+
             function norm(wert){
                 return trimText(wert).toLowerCase().replace(/\s+/g," ");
             }
@@ -2204,6 +2215,7 @@
             var info=seitenContainer.add("panel");
             info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=5;
             info.add("statictext",undefined,"Datensatz "+originalNr+"  +  Datensatz "+dubletteNr);
+            if(paare.length>0)info.add("statictext",undefined,"Dublettenpaar "+(paarIndex+1)+" von "+paare.length);
             info.add("statictext",undefined,"Abweichende Felder: "+unterschiede.length);
             info.add("statictext",undefined,"Identische Felder automatisch \u00fcbernommen: "+identisch);
 
@@ -2274,10 +2286,39 @@
                 });
             }
 
-            var buttons=seitenContainer.add("group");
+            var navigation=seitenContainer.add("group");
+            navigation.orientation="row";
+            navigation.alignment="fill";
+
+            var navLinks=navigation.add("group");
+            navLinks.alignment="left";
+            var vorherigeDublette=navLinks.add("button",undefined,"Vorherige Dublette");
+            vorherigeDublette.enabled=paare.length>0&&paarIndex>0;
+
+            var paarAnzeige=navLinks.add("statictext",undefined,paare.length>0?"Paar "+(paarIndex+1)+" von "+paare.length:"");
+            paarAnzeige.preferredSize.width=90;
+
+            var naechsteDublette=navLinks.add("button",undefined,"N\u00e4chste Dublette");
+            naechsteDublette.enabled=paare.length>0&&paarIndex<paare.length-1;
+
+            var buttons=navigation.add("group");
             buttons.alignment="right";
-            var abbrechen=buttons.add("button",undefined,"Abbrechen");
+            var abbrechen=buttons.add("button",undefined,"Zur\u00fcck");
             var speichern=buttons.add("button",undefined,"Zusammenf\u00fchren");
+
+            vorherigeDublette.onClick=function(){
+                if(paarIndex<=0||paare.length==0)return;
+                csvDaten.dublettenSeitenIndex=paarIndex-1;
+                var p=paare[paarIndex-1];
+                zeigeDublettenZusammenfuehrenSeite(mapping,p.original,p.datensatz);
+            };
+
+            naechsteDublette.onClick=function(){
+                if(paarIndex>=paare.length-1||paare.length==0)return;
+                csvDaten.dublettenSeitenIndex=paarIndex+1;
+                var p=paare[paarIndex+1];
+                zeigeDublettenZusammenfuehrenSeite(mapping,p.original,p.datensatz);
+            };
 
             abbrechen.onClick=function(){zeigeDublettenPruefungSeite(mapping);};
 
@@ -2351,6 +2392,14 @@
 
                 if(ausgeschlossen[alle[i].datensatz]||ausgeschlossen[alle[i].original])continue;
                 dubletten.push(alle[i]);
+            }
+
+            csvDaten.aktuelleDublettenpaare=[];
+            for(i=0;i<dubletten.length;i++){
+                csvDaten.aktuelleDublettenpaare.push({
+                    original:dubletten[i].original,
+                    datensatz:dubletten[i].datensatz
+                });
             }
 
             var automatischEntfernt=0;
