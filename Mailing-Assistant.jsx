@@ -1489,6 +1489,12 @@
         weiter.enabled =
             true;
 
+        weiter.onClick =
+            function () {
+
+                dlg.close(2);
+            };
+
 
         zurueck.onClick =
             function () {
