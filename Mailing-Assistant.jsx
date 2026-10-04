@@ -963,7 +963,7 @@
 
         try {
             var launcher = "Dim sh\r\nSet sh=CreateObject(\"WScript.Shell\")\r\n";
-            launcher += "sh.Run \"cscript.exe //nologo \"\"\"" + vbScriptText(scriptPfad) + "\"\"\"\",0,False\r\n";
+            launcher += 'sh.Run "cscript.exe //nologo ""' + vbScriptText(scriptPfad) + '""",0,False\r\n';
             app.doScript(launcher, ScriptLanguage.VISUAL_BASIC);
 
             var startZeit = new Date().getTime();
