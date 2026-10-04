@@ -1028,7 +1028,7 @@
             var fuellBreite = Math.round((w - innen * 2) * anteil);
 
             var hintergrund = g.newBrush(g.BrushType.SOLID_COLOR, [0.18, 0.18, 0.18, 1]);
-            var fuellung = g.newBrush(g.BrushType.SOLID_COLOR, [0.10, 0.62, 0.82, 1]);
+            var fuellung = g.newBrush(g.BrushType.SOLID_COLOR, [0.92, 0.92, 0.92, 1]);
             var rahmen = g.newPen(g.PenType.SOLID_COLOR, [0.48, 0.48, 0.48, 1], 1);
 
             g.rectPath(0, 0, w, h);
