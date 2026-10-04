@@ -142,6 +142,11 @@
 
     function xlsxZellwertDekodieren(text) {
         var w=text===null||text===undefined?"":String(text);
+        if (w.indexOf("~")==0) {
+            var hex=w.substring(1), ergebnis="", i, code;
+            for(i=0;i+4<=hex.length;i+=4){code=parseInt(hex.substring(i,i+4),16);if(!isNaN(code))ergebnis+=String.fromCharCode(code);}
+            return ergebnis;
+        }
         return w.replace(/%7C/g,"|").replace(/%09/g,"\t").replace(/%0A/g,"\n").replace(/%0D/g,"\r").replace(/%25/g,"%");
     }
 
@@ -151,7 +156,9 @@
         vb+="Set wb=xl.Workbooks.Open(\"" + vbScriptText(datei.fsName) + "\",False,True)\r\nIf Err.Number<>0 Then WScript.Quit 1\r\n";
         vb+="Set ws=wb.Worksheets(\"" + vbScriptText(blatt) + "\")\r\nSet ur=ws.UsedRange\r\nfirstRow=ur.Row:firstCol=ur.Column:lastRow=firstRow+ur.Rows.Count-1:lastCol=firstCol+ur.Columns.Count-1\r\n";
         vb+="ws.UsedRange.Columns.AutoFit\r\nSet stm=CreateObject(\"ADODB.Stream\")\r\nstm.Type=2\r\nstm.Charset=\"utf-8\"\r\nstm.Open\r\n";
-        vb+="For r=firstRow To lastRow\r\n For col=firstCol To lastCol\r\n v=ws.Cells(r,col).Text\r\n v=Replace(v,\"%\",\"%25\"):v=Replace(v,\"|\",\"%7C\"):v=Replace(v,vbTab,\"%09\"):v=Replace(v,vbCr,\"%0D\"):v=Replace(v,vbLf,\"%0A\")\r\n stm.WriteText v\r\n If col<lastCol Then stm.WriteText \"|\"\r\n Next\r\n stm.WriteText vbCrLf\r\nNext\r\n";
+        vb+="For r=firstRow To lastRow\r\n For col=firstCol To lastCol\r\n v=ws.Cells(r,col).Text\r\n";
+        vb+=" Dim n, ch, hx\r\n stm.WriteText \"~\"\r\n For n=1 To Len(v)\r\n  ch=AscW(Mid(v,n,1)):If ch<0 Then ch=ch+65536\r\n  hx=Hex(ch):hx=String(4-Len(hx),\"0\") & hx:stm.WriteText hx\r\n Next\r\n";
+        vb+=" If col<lastCol Then stm.WriteText \"|\"\r\n Next\r\n stm.WriteText vbCrLf\r\nNext\r\n";
         vb+="stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\nstm.Close\r\nwb.Close False\r\nxl.Quit\r\n";
         app.doScript(vb,ScriptLanguage.VISUAL_BASIC);
         var f=File(ausgabe);if(!f.exists)throw new Error("Das Excel-Tabellenblatt konnte nicht gelesen werden.");f.encoding="UTF-8";if(!f.open("r"))throw new Error("Die Excel-Daten konnten nicht gelesen werden.");
