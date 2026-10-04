@@ -2853,37 +2853,92 @@
             var linksKurz=adressKurz(d.original);
             var rechtsKurz=adressKurz(d.datensatz);
 
-            var paar=seitenContainer.add("panel");
-            paar.text="Paar "+(index+1)+" von "+dubletten.length;
-            paar.orientation="column";paar.alignChildren=["fill","top"];paar.margins=14;paar.spacing=10;
+            function quellzeileFuerDatensatzLokal(nr){
+                if(csvDaten.quellzeilen && csvDaten.quellzeilen.length>=nr)return csvDaten.quellzeilen[nr-1];
+                return nr+1;
+            }
 
-            var kopf= paar.add("group");
-            kopf.orientation="row";kopf.alignChildren=["fill","top"];kopf.spacing=20;
+            function entscheidungsText(wert){
+                if(wert=="links")return "Datensatz "+d.original+" behalten";
+                if(wert=="rechts")return "Datensatz "+d.datensatz+" behalten";
+                if(wert=="beide")return "Beide behalten";
+                if(wert=="zusammengefuehrt")return "Zusammengef\u00fchrt";
+                return "Noch nicht entschieden";
+            }
 
-            var linksInfo=kopf.add("panel");
-            linksInfo.text="Datensatz "+d.original;
-            linksInfo.orientation="column";linksInfo.alignChildren=["left","top"];linksInfo.margins=10;
-            var li1=linksInfo.add("statictext",undefined,linksKurz.name);li1.preferredSize.width=330;
-            var li2=linksInfo.add("statictext",undefined,linksKurz.adresse);li2.preferredSize.width=330;
+            // Auf dieser Seite bewusst kompakter als die langen Freigabe-Ansichten.
+            try{
+                seitenHost.preferredSize=[930,520];
+                seitenContainer.preferredSize=[930,520];
+            }catch(eSize){}
 
-            var rechtsInfo=kopf.add("panel");
-            rechtsInfo.text="Datensatz "+d.datensatz;
-            rechtsInfo.orientation="column";rechtsInfo.alignChildren=["left","top"];rechtsInfo.margins=10;
-            var ri1=rechtsInfo.add("statictext",undefined,rechtsKurz.name);ri1.preferredSize.width=330;
-            var ri2=rechtsInfo.add("statictext",undefined,rechtsKurz.adresse);ri2.preferredSize.width=330;
+            var oben=seitenContainer.add("group");
+            oben.orientation="row";
+            oben.alignment="fill";
+            oben.alignChildren=["left","center"];
 
-            var diffPanel=paar.add("panel");
+            var titelGruppe=oben.add("group");
+            titelGruppe.orientation="column";
+            titelGruppe.alignChildren=["left","top"];
+            titelGruppe.add("statictext",undefined,"Dublettenpr\u00fcfung");
+            titelGruppe.add("statictext",undefined,"Nur Unterschiede entscheiden \u2013 identische Felder bleiben unver\u00e4ndert.");
+
+            var statusGruppe=oben.add("group");
+            statusGruppe.alignment="right";
+            statusGruppe.orientation="column";
+            statusGruppe.alignChildren=["right","top"];
+            statusGruppe.add("statictext",undefined,"Paar "+(index+1)+" von "+dubletten.length);
+            statusGruppe.add("statictext",undefined,dubletten.length+" manuell  \u00b7  "+automatischEntfernt+" automatisch entfernt");
+
+            var karten=seitenContainer.add("group");
+            karten.orientation="row";
+            karten.alignChildren=["fill","top"];
+            karten.spacing=16;
+
+            var linksInfo=karten.add("panel");
+            linksInfo.text="Datensatz "+d.original+"  \u00b7  Excel-Zeile "+quellzeileFuerDatensatzLokal(d.original);
+            linksInfo.orientation="column";
+            linksInfo.alignChildren=["left","top"];
+            linksInfo.margins=14;
+            linksInfo.preferredSize.width=445;
+            var li1=linksInfo.add("statictext",undefined,linksKurz.name);
+            li1.preferredSize.width=410;
+            var li2=linksInfo.add("statictext",undefined,linksKurz.adresse);
+            li2.preferredSize.width=410;
+
+            var rechtsInfo=karten.add("panel");
+            rechtsInfo.text="Datensatz "+d.datensatz+"  \u00b7  Excel-Zeile "+quellzeileFuerDatensatzLokal(d.datensatz);
+            rechtsInfo.orientation="column";
+            rechtsInfo.alignChildren=["left","top"];
+            rechtsInfo.margins=14;
+            rechtsInfo.preferredSize.width=445;
+            var ri1=rechtsInfo.add("statictext",undefined,rechtsKurz.name);
+            ri1.preferredSize.width=410;
+            var ri2=rechtsInfo.add("statictext",undefined,rechtsKurz.adresse);
+            ri2.preferredSize.width=410;
+
+            var diffPanel=seitenContainer.add("panel");
             diffPanel.text="Abweichungen";
-            diffPanel.orientation="column";diffPanel.alignChildren=["fill","top"];diffPanel.margins=10;diffPanel.spacing=4;
+            diffPanel.orientation="column";
+            diffPanel.alignChildren=["fill","top"];
+            diffPanel.margins=12;
+            diffPanel.spacing=5;
 
-            var dh=diffPanel.add("group");dh.orientation="row";
-            var dh1=dh.add("statictext",undefined,"Feld");dh1.preferredSize.width=130;
-            var dh2=dh.add("statictext",undefined,"Datensatz "+d.original);dh2.preferredSize.width=270;
-            var dh3=dh.add("statictext",undefined,"Datensatz "+d.datensatz);dh3.preferredSize.width=270;
+            var dh=diffPanel.add("group");
+            dh.orientation="row";
+            var dh0=dh.add("statictext",undefined,"Feld");dh0.preferredSize.width=145;
+            var dh1=dh.add("statictext",undefined,"Datensatz "+d.original);dh1.preferredSize.width=345;
+            var dh2=dh.add("statictext",undefined,"Datensatz "+d.datensatz);dh2.preferredSize.width=345;
 
             for(i=0;i<vergleich.diff.length;i++){
-                var dr=diffPanel.add("group");dr.orientation="row";dr.alignChildren=["left","center"];
-                var dm=dr.add("panel");dm.preferredSize=[7,16];dm.minimumSize=[7,16];dm.maximumSize=[7,16];
+                var dr=diffPanel.add("group");
+                dr.orientation="row";
+                dr.alignChildren=["left","center"];
+
+                var dm=dr.add("panel");
+                dm.preferredSize=[6,18];
+                dm.minimumSize=[6,18];
+                dm.maximumSize=[6,18];
                 dm.onDraw=function(){
                     var g=this.graphics;
                     var b=g.newBrush(g.BrushType.SOLID_COLOR,[0.95,0.55,0.10,1]);
@@ -2891,76 +2946,52 @@
                     g.rectPath(0,0,this.size.width,this.size.height);
                     g.fillPath(b);
                 };
-                var f1=dr.add("statictext",undefined,vergleich.diff[i].feld);f1.preferredSize.width=123;
-                var f2=dr.add("statictext",undefined,vergleich.diff[i].links!=""?vergleich.diff[i].links:"[leer]");f2.preferredSize.width=270;
-                var f3=dr.add("statictext",undefined,vergleich.diff[i].rechts!=""?vergleich.diff[i].rechts:"[leer]");f3.preferredSize.width=270;
+
+                var f1=dr.add("statictext",undefined,vergleich.diff[i].feld);
+                f1.preferredSize.width=139;
+                var f2=dr.add("statictext",undefined,vergleich.diff[i].links!=""?vergleich.diff[i].links:"[leer]");
+                f2.preferredSize.width=345;
+                var f3=dr.add("statictext",undefined,vergleich.diff[i].rechts!=""?vergleich.diff[i].rechts:"[leer]");
+                f3.preferredSize.width=345;
             }
 
-            diffPanel.add("statictext",undefined,vergleich.gleich+" identische Felder werden nicht angezeigt.");
-
-            var entscheidung=paar.add("panel");
-            entscheidung.text="Entscheidung";
-            entscheidung.orientation="row";entscheidung.alignChildren=["left","center"];entscheidung.margins=10;entscheidung.spacing=14;
-
-            var linksBehalten=entscheidung.add("radiobutton",undefined,"Datensatz "+d.original+" behalten");
-            var rechtsBehalten=entscheidung.add("radiobutton",undefined,"Datensatz "+d.datensatz+" behalten");
-            var beideBehalten=entscheidung.add("radiobutton",undefined,"Beide behalten");
-            var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren");
+            var identisch=diffPanel.add("statictext",undefined,vergleich.gleich+" weitere Felder identisch");
+            identisch.alignment="left";
 
             var alt=csvDaten.dublettenstatus[schluessel]||"pruefen";
-            if(alt=="links")linksBehalten.value=true;
-            else if(alt=="rechts")rechtsBehalten.value=true;
-            else if(alt=="beide")beideBehalten.value=true;
 
-            function aktuelleEntscheidung(){
-                if(linksBehalten.value)return "links";
-                if(rechtsBehalten.value)return "rechts";
-                if(beideBehalten.value)return "beide";
-                return "pruefen";
+            var aktStatus=seitenContainer.add("statictext",undefined,"Aktuelle Entscheidung: "+entscheidungsText(alt));
+            aktStatus.alignment="left";
+
+            var entscheidung=seitenContainer.add("panel");
+            entscheidung.text="Entscheidung";
+            entscheidung.orientation="column";
+            entscheidung.alignChildren=["fill","top"];
+            entscheidung.margins=12;
+            entscheidung.spacing=8;
+
+            var aktionsZeile=entscheidung.add("group");
+            aktionsZeile.orientation="row";
+            aktionsZeile.alignChildren=["fill","center"];
+            aktionsZeile.spacing=10;
+
+            var linksBehalten=aktionsZeile.add("button",undefined,String(d.original)+" behalten");
+            linksBehalten.preferredSize.width=180;
+
+            var zusammenfuehren=aktionsZeile.add("button",undefined,"Zusammenf\u00fchren");
+            zusammenfuehren.preferredSize.width=200;
+
+            var rechtsBehalten=aktionsZeile.add("button",undefined,String(d.datensatz)+" behalten");
+            rechtsBehalten.preferredSize.width=180;
+
+            var beideBehalten=aktionsZeile.add("button",undefined,"Beide behalten");
+            beideBehalten.preferredSize.width=180;
+
+            function entscheidungSpeichern(wert){
+                csvDaten.dublettenstatus[schluessel]=wert;
             }
 
-            function speichern(){
-                csvDaten.dublettenstatus[schluessel]=aktuelleEntscheidung();
-            }
-
-            zusammenfuehren.onClick=function(){
-                speichern();
-                zeigeDublettenZusammenfuehrenSeite(mapping,d.original,d.datensatz);
-            };
-
-            var navigation=seitenContainer.add("group");
-            navigation.orientation="row";navigation.alignment="fill";
-
-            var navLinks=navigation.add("group");navLinks.alignment="left";
-            var zurFreigabe=navLinks.add("button",undefined,"Zur\u00fcck zur Freigabe");
-            var vorheriges=navLinks.add("button",undefined,"Vorheriges Paar");
-            vorheriges.enabled=index>0;
-
-            var navRechts=navigation.add("group");navRechts.alignment="right";
-            var naechstes=navRechts.add("button",undefined,index<dubletten.length-1?"N\u00e4chstes Paar":"Dublettenpr\u00fcfung abschlie\u00dfen");
-
-            zurFreigabe.onClick=function(){
-                speichern();
-                delete csvDaten.dublettenSeitenIndex;
-                zeigeFinaleFreigabeSeite(mapping);
-            };
-
-            vorheriges.onClick=function(){
-                speichern();
-                csvDaten.dublettenSeitenIndex=index-1;
-                zeigeDublettenPruefungSeite(mapping);
-            };
-
-            naechstes.onClick=function(){
-                var ent=aktuelleEntscheidung();
-                if(ent=="pruefen"){
-                    letzteNachricht="Bitte f\u00fcr dieses Dublettenpaar eine Entscheidung treffen oder die Datens\u00e4tze zusammenf\u00fchren.";
-                    zeigeDublettenPruefungSeite(mapping);
-                    return;
-                }
-
-                speichern();
-
+            function zumNaechstenOderAbschluss(){
                 if(index<dubletten.length-1){
                     csvDaten.dublettenSeitenIndex=index+1;
                     zeigeDublettenPruefungSeite(mapping);
@@ -3008,6 +3039,59 @@
                 csvDaten.ausgeschlosseneDatensatznummern=aus;
                 delete csvDaten.dublettenSeitenIndex;
                 zeigeMailingSeite(mapping);
+            }
+
+            linksBehalten.onClick=function(){
+                entscheidungSpeichern("links");
+                zumNaechstenOderAbschluss();
+            };
+
+            rechtsBehalten.onClick=function(){
+                entscheidungSpeichern("rechts");
+                zumNaechstenOderAbschluss();
+            };
+
+            beideBehalten.onClick=function(){
+                entscheidungSpeichern("beide");
+                zumNaechstenOderAbschluss();
+            };
+
+            zusammenfuehren.onClick=function(){
+                zeigeDublettenZusammenfuehrenSeite(mapping,d.original,d.datensatz);
+            };
+
+            var navigation=seitenContainer.add("group");
+            navigation.orientation="row";
+            navigation.alignment="fill";
+
+            var navLinks=navigation.add("group");
+            navLinks.alignment="left";
+            var zurFreigabe=navLinks.add("button",undefined,"Zur\u00fcck zur Freigabe");
+            var vorheriges=navLinks.add("button",undefined,"\u2190 Vorheriges Paar");
+            vorheriges.enabled=index>0;
+
+            var navRechts=navigation.add("group");
+            navRechts.alignment="right";
+            var naechstes=navRechts.add("button",undefined,index<dubletten.length-1?"N\u00e4chstes Paar \u2192":"Pr\u00fcfung abschlie\u00dfen");
+
+            zurFreigabe.onClick=function(){
+                delete csvDaten.dublettenSeitenIndex;
+                zeigeFinaleFreigabeSeite(mapping);
+            };
+
+            vorheriges.onClick=function(){
+                csvDaten.dublettenSeitenIndex=index-1;
+                zeigeDublettenPruefungSeite(mapping);
+            };
+
+            naechstes.onClick=function(){
+                var ent=csvDaten.dublettenstatus[schluessel]||"pruefen";
+                if(ent=="pruefen"){
+                    letzteNachricht="Bitte zuerst eine Entscheidung treffen oder die Datens\u00e4tze zusammenf\u00fchren.";
+                    zeigeDublettenPruefungSeite(mapping);
+                    return;
+                }
+                zumNaechstenOderAbschluss();
             };
 
             if(letzteNachricht!=""){zeigeNachricht(letzteNachricht);letzteNachricht="";}
