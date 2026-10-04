@@ -1948,12 +1948,48 @@
                 dubletten.push(alle[i]);
             }
 
+            function datensatzVergleichstext(nr) {
+                var ds=csvDaten.datensaetze[nr-1];
+                var firma=wertAusDatensatz(mapping,ds,"Firma");
+                var person=verbindeTeile([
+                    wertAusDatensatz(mapping,ds,"Anrede"),
+                    wertAusDatensatz(mapping,ds,"Titel"),
+                    wertAusDatensatz(mapping,ds,"Vorname"),
+                    wertAusDatensatz(mapping,ds,"Nachname")
+                ]);
+                var empfaenger=firma!=""?(person!=""?firma+" / "+person:firma):person;
+                if(empfaenger=="")empfaenger="[ohne Empf\u00e4nger]";
+
+                var postfach=wertAusDatensatz(mapping,ds,"Postfach");
+                var strassenAnalyse=strassenHausnummerAnalysieren(
+                    wertAusDatensatz(mapping,ds,"Stra\u00dfe"),
+                    wertAusDatensatz(mapping,ds,"Hausnummer")
+                );
+                var anschrift=postfach!=""?postfachZeileNormalisieren(postfach):strassenAnalyse.zeile;
+
+                var land=wertAusDatensatz(mapping,ds,"Land");
+                var plzOrtAnalyse=plzOrtAnalysieren(
+                    wertAusDatensatz(mapping,ds,"PLZ"),
+                    wertAusDatensatz(mapping,ds,"Ort"),
+                    land
+                );
+
+                var zeilen=[
+                    "Empf\u00e4nger: "+empfaenger,
+                    "Anschrift: "+anschrift,
+                    "PLZ / Ort: "+plzOrtAnalyse.zeile,
+                    "Land: "+(land!=""?land:"Deutschland")
+                ];
+                return zeilen.join("\r\n");
+            }
+
             seitenContainer.add("statictext",undefined,"Dublettenpr\u00fcfung");
             seitenContainer.add("statictext",undefined,"Letzte Pr\u00fcfinstanz nach Bereinigung und manueller Korrektur.");
+            seitenContainer.add("statictext",undefined,"Vergleiche beide Varianten und entscheide, welcher Datensatz erhalten bleiben soll.");
 
             var info=seitenContainer.add("panel");
             info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
-            info.add("statictext",undefined,"Gefundene Dubletten: "+dubletten.length);
+            info.add("statictext",undefined,"Gefundene Dublettenpaare: "+dubletten.length);
 
             if(dubletten.length==0) {
                 seitenContainer.add("statictext",undefined,"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
@@ -1975,64 +2011,121 @@
                 return;
             }
 
-            var kopf=seitenContainer.add("group");kopf.orientation="row";
-            var k1=kopf.add("statictext",undefined,"Datensatz");k1.preferredSize.width=70;
-            var k2=kopf.add("statictext",undefined,"Dublette von");k2.preferredSize.width=80;
-            var k3=kopf.add("statictext",undefined,"Empf\u00e4nger");k3.preferredSize.width=190;
-            var k4=kopf.add("statictext",undefined,"Anschrift");k4.preferredSize.width=250;
-            var k5=kopf.add("statictext",undefined,"Status");k5.preferredSize.width=120;
-
-            var panel=seitenContainer.add("panel");
-            panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=12;panel.spacing=5;
-
             if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
             var auswahl=[];
 
             for(i=0;i<dubletten.length;i++){
                 var d=dubletten[i];
-                var row=panel.add("group");row.orientation="row";row.alignChildren=["left","center"];
-                var t1=row.add("statictext",undefined,String(d.datensatz));t1.preferredSize.width=70;
-                var t2=row.add("statictext",undefined,String(d.original));t2.preferredSize.width=80;
-                var t3=row.add("statictext",undefined,d.empfaenger||"");t3.preferredSize.width=190;
-                var t4=row.add("statictext",undefined,verbindeTeile([d.anschrift,d.ort]));t4.preferredSize.width=250;
-                var dd=row.add("dropdownlist",undefined,["Pr\u00fcfen","\u00dcbernehmen","Ausschlie\u00dfen"]);dd.preferredSize.width=120;
-                var alt=csvDaten.dublettenstatus[d.datensatz]||"Pr\u00fcfen";
-                dd.selection=alt=="\u00dcbernehmen"?1:(alt=="Ausschlie\u00dfen"?2:0);
-                auswahl.push({datensatz:d.datensatz,dropdown:dd});
+                var schluessel=String(d.original)+"-"+String(d.datensatz);
+
+                var paar=seitenContainer.add("panel");
+                paar.text="Dublettenpaar "+(i+1);
+                paar.orientation="column";
+                paar.alignChildren=["fill","top"];
+                paar.margins=12;
+                paar.spacing=8;
+
+                var vergleich=paar.add("group");
+                vergleich.orientation="row";
+                vergleich.alignChildren=["fill","top"];
+                vergleich.spacing=12;
+
+                var links=vergleich.add("panel");
+                links.text="Datensatz "+d.original;
+                links.orientation="column";
+                links.alignChildren=["fill","top"];
+                links.margins=10;
+                var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original),{multiline:true,readonly:true});
+                linksText.preferredSize=[320,88];
+
+                var rechts=vergleich.add("panel");
+                rechts.text="Datensatz "+d.datensatz;
+                rechts.orientation="column";
+                rechts.alignChildren=["fill","top"];
+                rechts.margins=10;
+                var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz),{multiline:true,readonly:true});
+                rechtsText.preferredSize=[320,88];
+
+                var entscheidung=paar.add("group");
+                entscheidung.orientation="row";
+                entscheidung.alignChildren=["left","center"];
+                entscheidung.add("statictext",undefined,"Entscheidung:");
+                var optionen=[
+                    "Pr\u00fcfen",
+                    "Datensatz "+d.original+" behalten",
+                    "Datensatz "+d.datensatz+" behalten",
+                    "Beide behalten"
+                ];
+                var dd=entscheidung.add("dropdownlist",undefined,optionen);
+                dd.preferredSize.width=230;
+
+                var alt=csvDaten.dublettenstatus[schluessel]||"Pr\u00fcfen";
+                if(alt=="links")dd.selection=1;
+                else if(alt=="rechts")dd.selection=2;
+                else if(alt=="beide")dd.selection=3;
+                else dd.selection=0;
+
+                auswahl.push({
+                    schluessel:schluessel,
+                    original:d.original,
+                    datensatz:d.datensatz,
+                    dropdown:dd
+                });
             }
 
-            var hinweis=seitenContainer.add("statictext",undefined,"Jede gefundene Dublette muss bewusst als \u201e\u00dcbernehmen\u201c oder \u201eAusschlie\u00dfen\u201c entschieden werden.");
-            hinweis.characters=95;
+            var hinweis=seitenContainer.add("statictext",undefined,"Bei \u201elinks behalten\u201c oder \u201erechts behalten\u201c wird der jeweils andere Datensatz ausgeschlossen. \u201eBeide behalten\u201c l\u00e4sst beide Datens\u00e4tze in der Mailing-Auflage.");
+            hinweis.characters=100;
 
             var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
             var weiter=buttons.add("button",undefined,"Weiter");
 
+            function statusAusDropdown(a) {
+                var idx=a.dropdown.selection?a.dropdown.selection.index:0;
+                if(idx==1)return "links";
+                if(idx==2)return "rechts";
+                if(idx==3)return "beide";
+                return "pruefen";
+            }
+
             zurueck.onClick=function(){
                 var j;
-                for(j=0;j<auswahl.length;j++)csvDaten.dublettenstatus[auswahl[j].datensatz]=auswahl[j].dropdown.selection?auswahl[j].dropdown.selection.text:"Pr\u00fcfen";
+                for(j=0;j<auswahl.length;j++){
+                    csvDaten.dublettenstatus[auswahl[j].schluessel]=statusAusDropdown(auswahl[j]);
+                }
                 zeigeFinaleFreigabeSeite(mapping);
             };
 
             weiter.onClick=function(){
                 var j,offen=[];
                 for(j=0;j<auswahl.length;j++){
-                    var entscheidung=auswahl[j].dropdown.selection?auswahl[j].dropdown.selection.text:"Pr\u00fcfen";
-                    csvDaten.dublettenstatus[auswahl[j].datensatz]=entscheidung;
-                    if(entscheidung=="Pr\u00fcfen")offen.push(auswahl[j].datensatz);
+                    var entscheidung=statusAusDropdown(auswahl[j]);
+                    csvDaten.dublettenstatus[auswahl[j].schluessel]=entscheidung;
+                    if(entscheidung=="pruefen")offen.push(auswahl[j].original+"/"+auswahl[j].datensatz);
                 }
+
                 if(offen.length>0){
-                    letzteNachricht="Dubletten noch offen: Datensatz "+offen.join(", ")+".";
+                    letzteNachricht="Dubletten noch offen: "+offen.join(", ")+".";
                     zeigeDublettenPruefungSeite(mapping);
                     return;
                 }
 
                 if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
+
                 for(j=0;j<auswahl.length;j++){
-                    var nr=auswahl[j].datensatz;
-                    var entscheidung=csvDaten.dublettenstatus[nr];
-                    if(entscheidung=="Ausschlie\u00dfen")csvDaten.freigabestatus[nr]="Ausschlie\u00dfen";
-                    else if(entscheidung=="\u00dcbernehmen")csvDaten.freigabestatus[nr]="\u00dcbernehmen";
+                    var a=auswahl[j];
+                    var e=csvDaten.dublettenstatus[a.schluessel];
+
+                    if(e=="links"){
+                        csvDaten.freigabestatus[a.original]="\u00dcbernehmen";
+                        csvDaten.freigabestatus[a.datensatz]="Ausschlie\u00dfen";
+                    }else if(e=="rechts"){
+                        csvDaten.freigabestatus[a.original]="Ausschlie\u00dfen";
+                        csvDaten.freigabestatus[a.datensatz]="\u00dcbernehmen";
+                    }else if(e=="beide"){
+                        csvDaten.freigabestatus[a.original]="\u00dcbernehmen";
+                        csvDaten.freigabestatus[a.datensatz]="\u00dcbernehmen";
+                    }
                 }
 
                 var frei=[],aus=[],n;
