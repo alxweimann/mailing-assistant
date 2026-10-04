@@ -1720,7 +1720,29 @@
         weiter.onClick =
             function () {
 
+                var mapping = {};
+
+                var k;
+
+                for (
+                    k = 0;
+                    k < interneFelder.length;
+                    k++
+                ) {
+
+                    mapping[interneFelder[k]] =
+                        zuordnungen[k].selection
+                            ? zuordnungen[k].selection.text
+                            : null;
+                }
+
                 dlg.close(2);
+
+                zeigeAdressvorschau(
+                    datei,
+                    csvDaten,
+                    mapping
+                );
             };
 
 
@@ -1734,6 +1756,277 @@
         if (ergebnis == 1) {
 
             zeigeCsvVorschau(
+                datei,
+                csvDaten
+            );
+        }
+    }
+
+
+    // ============================================================
+    // ADRESSVORSCHAU
+    // ============================================================
+
+    function zeigeAdressvorschau(
+        datei,
+        csvDaten,
+        mapping
+    ) {
+
+        var dlg = new Window(
+            "dialog",
+            "Mailing-Assistant – Adressvorschau"
+        );
+
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "Adressvorschau"
+        );
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "Vorschau der ersten Datensätze mit der gewählten Spaltenzuordnung."
+        );
+
+
+        var interneFelder = [
+            "Anrede",
+            "Titel",
+            "Vorname",
+            "Nachname",
+            "Firma",
+            "Straße",
+            "Hausnummer",
+            "PLZ",
+            "Ort",
+            "Land",
+            "Adresszusatz",
+            "E-Mail",
+            "Telefon",
+            "Kundennummer",
+            "Selektionsmerkmal",
+            "Sonstiges"
+        ];
+
+
+        var sichtbareFelder = [];
+        var i;
+        var j;
+        var feld;
+        var csvIndex;
+
+
+        for (
+            i = 0;
+            i < interneFelder.length;
+            i++
+        ) {
+
+            feld = interneFelder[i];
+
+            if (
+                mapping[feld] &&
+                mapping[feld] != "— nicht zugeordnet —"
+            ) {
+
+                sichtbareFelder.push(
+                    feld
+                );
+            }
+        }
+
+
+        var bereich =
+            dlg.add("panel");
+
+        bereich.text =
+            "Zugeordnete Daten";
+
+        bereich.orientation =
+            "column";
+
+        bereich.alignChildren =
+            ["fill", "top"];
+
+        bereich.margins = 15;
+
+
+        if (sichtbareFelder.length == 0) {
+
+            bereich.add(
+                "statictext",
+                undefined,
+                "Es wurde noch kein Feld zugeordnet."
+            );
+
+        } else {
+
+            var spaltenbreiten = [];
+
+            for (
+                i = 0;
+                i < sichtbareFelder.length;
+                i++
+            ) {
+
+                spaltenbreiten.push(
+                    130
+                );
+            }
+
+
+            var liste =
+                bereich.add(
+                    "listbox",
+                    undefined,
+                    [],
+                    {
+                        numberOfColumns:
+                            sichtbareFelder.length,
+
+                        showHeaders:
+                            true,
+
+                        columnTitles:
+                            sichtbareFelder,
+
+                        columnWidths:
+                            spaltenbreiten
+                    }
+                );
+
+
+            liste.preferredSize = [
+                900,
+                260
+            ];
+
+
+            var maximaleVorschau =
+                Math.min(
+                    10,
+                    csvDaten.datensaetze.length
+                );
+
+
+            for (
+                i = 0;
+                i < maximaleVorschau;
+                i++
+            ) {
+
+                var datensatz =
+                    csvDaten.datensaetze[i];
+
+                var eintrag =
+                    liste.add(
+                        "item",
+                        ""
+                    );
+
+
+                for (
+                    j = 0;
+                    j < sichtbareFelder.length;
+                    j++
+                ) {
+
+                    feld =
+                        sichtbareFelder[j];
+
+                    csvIndex =
+                        csvDaten.spalten.indexOf(
+                            mapping[feld]
+                        );
+
+
+                    var wert =
+                        csvIndex >= 0 &&
+                        csvIndex < datensatz.length
+                            ? datensatz[csvIndex]
+                            : "";
+
+
+                    if (j == 0) {
+
+                        eintrag.text =
+                            wert;
+
+                    } else {
+
+                        eintrag.subItems[
+                            j - 1
+                        ].text =
+                            wert;
+                    }
+                }
+            }
+        }
+
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "Datensätze insgesamt: " +
+            csvDaten.anzahl
+        );
+
+
+        var buttons =
+            dlg.add("group");
+
+        buttons.alignment =
+            "right";
+
+
+        var zurueck =
+            buttons.add(
+                "button",
+                undefined,
+                "Zurück"
+            );
+
+
+        var fertig =
+            buttons.add(
+                "button",
+                undefined,
+                "Fertig"
+            );
+
+
+        zurueck.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
+
+        fertig.onClick =
+            function () {
+
+                dlg.close(2);
+            };
+
+
+        dlg.center();
+
+
+        var ergebnis =
+            dlg.show();
+
+
+        if (ergebnis == 1) {
+
+            zeigeSpaltenzuordnung(
                 datei,
                 csvDaten
             );
