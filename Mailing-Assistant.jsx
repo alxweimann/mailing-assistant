@@ -1544,7 +1544,7 @@
                 if(postfach!="")zeilen.push("Postfach "+postfach); else if(strasse!="")zeilen.push(strasse);
                 if(ort!="")zeilen.push(ort);
                 var lk=land.toLowerCase(); if(land!=""&&lk!="deutschland"&&lk!="de"&&lk!="germany"&&lk!="deu")zeilen.push(land);
-                return zeilen.join("\u2028");
+                return zeilen.join("\r\n");
             }
 
             var max=Math.min(10,csvDaten.datensaetze.length);
