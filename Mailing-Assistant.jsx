@@ -282,6 +282,10 @@
     function dublettenTextNormalisieren(text) {
         var wert = trimText(text).toLowerCase();
         wert = wert.replace(/\u00a0/g, " ");
+        wert = wert.replace(/\u00e4/g, "ae");
+        wert = wert.replace(/\u00f6/g, "oe");
+        wert = wert.replace(/\u00fc/g, "ue");
+        wert = wert.replace(/\u00df/g, "ss");
         wert = wert.replace(/\s+/g, " ");
         return wert;
     }
