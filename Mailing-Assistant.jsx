@@ -1908,10 +1908,20 @@
             ziel.write("\uFEFF" + zeilen.join("\r\n"));
             ziel.close();
 
+            var diagnoseStrasse = "";
+            if (strassenQuellIndex >= 0 && freigegeben.length > 0) {
+                var diagnoseDs = csvDaten.datensaetze[freigegeben[0] - 1];
+                if (diagnoseDs && strassenQuellIndex < diagnoseDs.length) {
+                    diagnoseStrasse = trimText(diagnoseDs[strassenQuellIndex]);
+                }
+            }
+
             return {
                 datei: ziel,
                 datensaetze: freigegeben.length,
-                felder: exportFelder.length + 1
+                felder: exportFelder.length + 1,
+                strassenIndex: strassenQuellIndex,
+                strassenBeispiel: diagnoseStrasse
             };
         }
 
@@ -1953,6 +1963,8 @@
                     info.add("statictext",undefined,"Freigegebene Datens\u00e4tze: "+ergebnis.datensaetze);
                     info.add("statictext",undefined,"Exportierte Spalten: "+ergebnis.felder);
                     info.add("statictext",undefined,"Datei: "+ergebnis.datei.fsName);
+                    info.add("statictext",undefined,"Diagnose Straße – Spaltenindex: "+ergebnis.strassenIndex);
+                    info.add("statictext",undefined,"Diagnose Straße – erster freigegebener Wert: "+(ergebnis.strassenBeispiel==""?"[leer]":ergebnis.strassenBeispiel));
                     seitenContainer.add("statictext",undefined,"Format: UTF-8, tabulatorgetrennt. Die Datei kann direkt als Datenquelle in InDesign verwendet werden.");
 
                     var b=seitenContainer.add("group");b.alignment="right";
