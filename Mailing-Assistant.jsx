@@ -217,6 +217,90 @@
         return fundstellen;
     }
 
+    function auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen) {
+        var map = {};
+        var i;
+        function hinzufuegen(nr, grund) {
+            if (!map[nr]) map[nr] = {datensatz:nr, gruende:[]};
+            map[nr].gruende.push(grund);
+        }
+        for (i = 0; i < plzHinweise.length; i++) hinzufuegen(plzHinweise[i].datensatz, "PLZ: " + plzHinweise[i].hinweis);
+        for (i = 0; i < postalHinweise.length; i++) hinzufuegen(postalHinweise[i].datensatz, postalHinweise[i].hinweis);
+        for (i = 0; i < dublettenHinweise.length; i++) hinzufuegen(dublettenHinweise[i].datensatz, "Dublette von Datensatz " + dublettenHinweise[i].original + ".");
+        for (i = 0; i < problematischeZeichen.length; i++) hinzufuegen(problematischeZeichen[i].datensatz, "Problematisches Zeichen " + problematischeZeichen[i].zeichen + " in " + problematischeZeichen[i].spalte + ".");
+        var result = [];
+        var key;
+        for (key in map) if (map.hasOwnProperty(key)) result.push(map[key]);
+        result.sort(function(a,b){ return a.datensatz - b.datensatz; });
+        return result;
+    }
+
+    function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen) {
+        var auffaellig = auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datensatzfreigabe");
+        dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
+        dlg.add("statictext", undefined, "Datensatzfreigabe");
+        dlg.add("statictext", undefined, "Auff\u00e4llige Datens\u00e4tze werden nicht automatisch verworfen. Lege f\u00fcr jeden Datensatz fest, wie er behandelt werden soll.");
+
+        var info = dlg.add("panel"); info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
+        info.add("statictext", undefined, "Gesamte Datens\u00e4tze: " + csvDaten.anzahl);
+        info.add("statictext", undefined, "Auff\u00e4llige Datens\u00e4tze: " + auffaellig.length);
+        info.add("statictext", undefined, "Unauff\u00e4llige Datens\u00e4tze werden automatisch als \u201e\u00dcbernehmen\u201c behandelt.");
+
+        var auswahl = [];
+        if (auffaellig.length > 0) {
+            var kopf = dlg.add("group"); kopf.orientation = "row";
+            var k1 = kopf.add("statictext", undefined, "Datensatz"); k1.preferredSize.width = 70;
+            var k2 = kopf.add("statictext", undefined, "Empf\u00e4nger"); k2.preferredSize.width = 180;
+            var k3 = kopf.add("statictext", undefined, "Pr\u00fcfgrund"); k3.preferredSize.width = 420;
+            kopf.add("statictext", undefined, "Status");
+
+            var panel = dlg.add("panel"); panel.orientation = "column"; panel.alignChildren = ["fill", "top"]; panel.margins = 12; panel.spacing = 5;
+            var i;
+            for (i = 0; i < auffaellig.length; i++) {
+                var nr = auffaellig[i].datensatz;
+                var ds = csvDaten.datensaetze[nr - 1];
+                var empfaenger = verbindeTeile([
+                    mappingWert(csvDaten, mapping, ds, "Firma"),
+                    mappingWert(csvDaten, mapping, ds, "Vorname"),
+                    mappingWert(csvDaten, mapping, ds, "Nachname")
+                ]);
+                if (empfaenger == "") empfaenger = "[ohne Empf\u00e4nger]";
+                var row = panel.add("group"); row.orientation = "row"; row.alignChildren = ["left", "center"];
+                var nrt = row.add("statictext", undefined, String(nr)); nrt.preferredSize.width = 70;
+                var et = row.add("statictext", undefined, empfaenger); et.preferredSize.width = 180;
+                var gt = row.add("statictext", undefined, auffaellig[i].gruende.join(" ")); gt.preferredSize.width = 420;
+                var dd = row.add("dropdownlist", undefined, ["Pr\u00fcfen", "\u00dcbernehmen", "Ausschlie\u00dfen"]); dd.preferredSize.width = 120; dd.selection = 0;
+                auswahl.push({datensatz:nr, dropdown:dd});
+            }
+        } else {
+            dlg.add("statictext", undefined, "Keine auff\u00e4lligen Datens\u00e4tze vorhanden.");
+        }
+
+        var buttons = dlg.add("group"); buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+        var weiter = buttons.add("button", undefined, "Weiter");
+        zurueck.onClick = function(){ dlg.close(1); };
+        weiter.onClick = function(){
+            var status = {};
+            var i;
+            for (i = 0; i < csvDaten.anzahl; i++) status[i + 1] = "\u00dcbernehmen";
+            for (i = 0; i < auswahl.length; i++) status[auswahl[i].datensatz] = auswahl[i].dropdown.selection ? auswahl[i].dropdown.selection.text : "Pr\u00fcfen";
+            csvDaten.freigabestatus = status;
+            dlg.close(2);
+            var uebernehmen = 0, ausschliessen = 0, pruefen = 0, k;
+            for (k in status) if (status.hasOwnProperty(k)) {
+                if (status[k] == "\u00dcbernehmen") uebernehmen++;
+                else if (status[k] == "Ausschlie\u00dfen") ausschliessen++;
+                else pruefen++;
+            }
+            alert("Freigabestatus gespeichert.\n\n\u00dcbernehmen: " + uebernehmen + "\nAusschlie\u00dfen: " + ausschliessen + "\nPr\u00fcfen: " + pruefen);
+        };
+        dlg.center();
+        var ergebnis = dlg.show();
+        if (ergebnis == 1) zeigeDatenbereinigung(datei, csvDaten, mapping);
+    }
+
     function verbindeTeile(teile) {
         var ergebnis = [];
         var i;
@@ -677,9 +761,11 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
             dlg.add("statictext", undefined, "Dubletten werden nur markiert. Es wird kein Datensatz automatisch entfernt oder zusammengef\u00fchrt.");
         } else dlg.add("statictext", undefined, "Keine eindeutigen postalischen Dubletten erkannt.");
 
-        var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
+        var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Weiter");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
-        dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
+        dlg.center(); var ergebnis = dlg.show();
+        if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
+        if (ergebnis == 2) zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
     }
 
     zeigeStartseite();
