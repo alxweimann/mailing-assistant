@@ -1829,6 +1829,13 @@
             info.add("statictext",undefined,(nurOffene?"Offene Datens\u00e4tze: ":"Auff\u00e4llige Datens\u00e4tze: ")+sichtbar.length);
             info.add("statictext",undefined,"Unauff\u00e4llige Datens\u00e4tze werden automatisch als \u201e\u00dcbernehmen\u201c behandelt.");
 
+            var sammelAktionen=seitenContainer.add("group");
+            sammelAktionen.orientation="row";
+            sammelAktionen.alignChildren=["left","center"];
+            sammelAktionen.add("statictext",undefined,"Sammelaktion:");
+            var alleUebernehmen=sammelAktionen.add("button",undefined,"Alle \u00fcbernehmen");
+            var alleAusschliessen=sammelAktionen.add("button",undefined,"Alle ausschlie\u00dfen");
+
             var auswahl=[];
             if(sichtbar.length>0){
                 var kopf=seitenContainer.add("group");kopf.orientation="row";
@@ -1860,6 +1867,19 @@
                     auswahl.push({datensatz:nr,dropdown:dd});
                 }
             } else seitenContainer.add("statictext",undefined,"Keine offenen auff\u00e4lligen Datens\u00e4tze vorhanden.");
+
+            alleUebernehmen.enabled=auswahl.length>0;
+            alleAusschliessen.enabled=auswahl.length>0;
+
+            alleUebernehmen.onClick=function(){
+                var ai;
+                for(ai=0;ai<auswahl.length;ai++)auswahl[ai].dropdown.selection=1;
+            };
+
+            alleAusschliessen.onClick=function(){
+                var ai;
+                for(ai=0;ai<auswahl.length;ai++)auswahl[ai].dropdown.selection=2;
+            };
 
             var buttons=seitenContainer.add("group");buttons.alignment="right";
             var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
