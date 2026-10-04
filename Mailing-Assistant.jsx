@@ -20,9 +20,9 @@
         dlg.margins = 20;
         dlg.add("statictext", undefined, "Mailing-Assistant");
         var neuerAuftrag = dlg.add("button", undefined, "Neuer Mailing-Auftrag");
-        var auftragOeffnen = dlg.add("button", undefined, "Gespeicherten Auftrag öffnen");
-        var auftragDuplizieren = dlg.add("button", undefined, "Auftrag duplizieren");
-        var nachproduktion = dlg.add("button", undefined, "Nachproduktion");
+        dlg.add("button", undefined, "Gespeicherten Auftrag öffnen");
+        dlg.add("button", undefined, "Auftrag duplizieren");
+        dlg.add("button", undefined, "Nachproduktion");
         var trennlinie = dlg.add("panel");
         trennlinie.alignment = "fill";
         dlg.add("statictext", undefined, "Zuletzt verwendet");
@@ -52,40 +52,21 @@
         formular.margins = 15;
         formular.spacing = 10;
 
-        var zeileAuftrag = formular.add("group");
-        zeileAuftrag.orientation = "row";
-        var labelAuftrag = zeileAuftrag.add("statictext", undefined, "Auftragsnummer:");
-        labelAuftrag.preferredSize.width = 160;
-        var feldAuftrag = zeileAuftrag.add("edittext", undefined, "");
-        feldAuftrag.characters = 30;
+        function feldZeile(label, wert) {
+            var zeile = formular.add("group");
+            zeile.orientation = "row";
+            var beschriftung = zeile.add("statictext", undefined, label);
+            beschriftung.preferredSize.width = 160;
+            var feld = zeile.add("edittext", undefined, wert || "");
+            feld.characters = 30;
+            return feld;
+        }
 
-        var zeileKunde = formular.add("group");
-        zeileKunde.orientation = "row";
-        var labelKunde = zeileKunde.add("statictext", undefined, "Kunde:");
-        labelKunde.preferredSize.width = 160;
-        var feldKunde = zeileKunde.add("edittext", undefined, "");
-        feldKunde.characters = 30;
-
-        var zeileBezeichnung = formular.add("group");
-        zeileBezeichnung.orientation = "row";
-        var labelBezeichnung = zeileBezeichnung.add("statictext", undefined, "Bezeichnung:");
-        labelBezeichnung.preferredSize.width = 160;
-        var feldBezeichnung = zeileBezeichnung.add("edittext", undefined, "");
-        feldBezeichnung.characters = 30;
-
-        var zeileProduktionsdatum = formular.add("group");
-        zeileProduktionsdatum.orientation = "row";
-        var labelProduktionsdatum = zeileProduktionsdatum.add("statictext", undefined, "Produktionsdatum:");
-        labelProduktionsdatum.preferredSize.width = 160;
-        var feldProduktionsdatum = zeileProduktionsdatum.add("edittext", undefined, heutigesDatum());
-        feldProduktionsdatum.characters = 30;
-
-        var zeileVersanddatum = formular.add("group");
-        zeileVersanddatum.orientation = "row";
-        var labelVersanddatum = zeileVersanddatum.add("statictext", undefined, "Versanddatum:");
-        labelVersanddatum.preferredSize.width = 160;
-        var feldVersanddatum = zeileVersanddatum.add("edittext", undefined, "");
-        feldVersanddatum.characters = 30;
+        var feldAuftrag = feldZeile("Auftragsnummer:", "");
+        var feldKunde = feldZeile("Kunde:", "");
+        var feldBezeichnung = feldZeile("Bezeichnung:", "");
+        var feldProduktionsdatum = feldZeile("Produktionsdatum:", heutigesDatum());
+        var feldVersanddatum = feldZeile("Versanddatum:", "");
 
         var zeileVersandart = formular.add("group");
         zeileVersandart.orientation = "row";
@@ -104,26 +85,16 @@
         feldSonstiges.characters = 30;
 
         feldVersandart.onChange = function () {
-            if (feldVersandart.selection && feldVersandart.selection.text == "Sonstiges") {
-                zeileSonstiges.visible = true;
-            } else {
-                zeileSonstiges.visible = false;
-            }
+            zeileSonstiges.visible = !!(feldVersandart.selection && feldVersandart.selection.text == "Sonstiges");
             dlg.layout.layout(true);
         };
 
-        var zeileSollAuflage = formular.add("group");
-        zeileSollAuflage.orientation = "row";
-        var labelSollAuflage = zeileSollAuflage.add("statictext", undefined, "Soll-Auflage (optional):");
-        labelSollAuflage.preferredSize.width = 160;
-        var feldSollAuflage = zeileSollAuflage.add("edittext", undefined, "");
-        feldSollAuflage.characters = 30;
-
+        var feldSollAuflage = feldZeile("Soll-Auflage (optional):", "");
         var zeileSollHinweis = formular.add("group");
         zeileSollHinweis.orientation = "row";
         var abstandSollHinweis = zeileSollHinweis.add("statictext", undefined, "");
         abstandSollHinweis.preferredSize.width = 160;
-        var sollHinweis = zeileSollHinweis.add("statictext", undefined, "Leer lassen = Auflage wird automatisch aus den freigegebenen Datensätzen ermittelt.");
+        zeileSollHinweis.add("statictext", undefined, "Leer lassen = Auflage wird automatisch aus den freigegebenen Datensätzen ermittelt.");
 
         var buttons = dlg.add("group");
         buttons.alignment = "right";
@@ -131,23 +102,60 @@
         var weiter = buttons.add("button", undefined, "Weiter");
         zurueck.onClick = function () { dlg.close(1); };
         weiter.onClick = function () {
-            var versandartText = "";
-            if (feldVersandart.selection) { versandartText = feldVersandart.selection.text; }
-            if (versandartText == "Sonstiges" && feldSonstiges.text != "") {
-                versandartText = versandartText + ": " + feldSonstiges.text;
+            if (feldSollAuflage.text != "" && (!/^\d+$/.test(feldSollAuflage.text) || parseInt(feldSollAuflage.text, 10) <= 0)) {
+                alert("Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben.");
+                feldSollAuflage.active = true;
+                return;
             }
-            if (feldSollAuflage.text != "") {
-                if (!/^\d+$/.test(feldSollAuflage.text) || parseInt(feldSollAuflage.text, 10) <= 0) {
-                    alert("Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben.");
-                    feldSollAuflage.active = true;
-                    return;
-                }
-            }
-            alert("Auftragsnummer: " + feldAuftrag.text + "\nKunde: " + feldKunde.text + "\nBezeichnung: " + feldBezeichnung.text + "\nProduktionsdatum: " + feldProduktionsdatum.text + "\nVersanddatum: " + feldVersanddatum.text + "\nVersandart: " + versandartText + "\nSoll-Auflage: " + (feldSollAuflage.text != "" ? feldSollAuflage.text : "nicht angegeben"));
+            dlg.close(2);
         };
         dlg.center();
         var ergebnis = dlg.show();
         if (ergebnis == 1) { zeigeStartseite(); }
+        if (ergebnis == 2) { zeigeDatenquelle(); }
+    }
+
+    function zeigeDatenquelle() {
+        var dlg = new Window("dialog", "Mailing-Assistant – Datenquelle");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+        dlg.add("statictext", undefined, "Datenquelle");
+        var bereich = dlg.add("panel");
+        bereich.orientation = "column";
+        bereich.alignChildren = ["fill", "top"];
+        bereich.margins = 15;
+        bereich.spacing = 10;
+        bereich.add("statictext", undefined, "Excel-Datei für diesen Mailing-Auftrag auswählen.");
+        var dateizeile = bereich.add("group");
+        dateizeile.orientation = "row";
+        dateizeile.alignChildren = ["fill", "center"];
+        var dateifeld = dateizeile.add("edittext", undefined, "");
+        dateifeld.characters = 42;
+        dateifeld.enabled = false;
+        var dateiAuswaehlen = dateizeile.add("button", undefined, "Datei auswählen...");
+        var buttons = dlg.add("group");
+        buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zurück");
+        var weiter = buttons.add("button", undefined, "Weiter");
+        weiter.enabled = false;
+        dateiAuswaehlen.onClick = function () {
+            var datei = File.openDialog("Excel-Datei auswählen", "*.xlsx");
+            if (datei) {
+                dateifeld.text = datei.fsName;
+                weiter.enabled = true;
+            }
+        };
+        zurueck.onClick = function () { dlg.close(1); };
+        weiter.onClick = function () { dlg.close(2); };
+        dlg.center();
+        var ergebnis = dlg.show();
+        if (ergebnis == 1) { zeigeNeuenAuftrag(); }
+        if (ergebnis == 2) {
+            alert("Datenquelle ausgewählt.\n\nDer eigentliche Excel-Import folgt im nächsten Schritt.");
+            zeigeDatenquelle();
+        }
     }
 
     zeigeStartseite();
