@@ -1005,8 +1005,43 @@
         var statusText = fortschritt.add("statictext", undefined, "Excel-Datei wird ge\u00f6ffnet ...");
         statusText.preferredSize.width = 430;
 
-        var balkenText = fortschritt.add("statictext", undefined, "");
-        balkenText.preferredSize.width = 430;
+        var balkenZeile = fortschritt.add("group");
+        balkenZeile.orientation = "row";
+        balkenZeile.alignChildren = ["left", "center"];
+        balkenZeile.spacing = 10;
+
+        var balkenFlaeche = balkenZeile.add("panel");
+        balkenFlaeche.preferredSize = [370, 20];
+        balkenFlaeche.minimumSize = [370, 20];
+        balkenFlaeche.maximumSize = [370, 20];
+        balkenFlaeche.fortschrittWert = 1;
+
+        var balkenProzent = balkenZeile.add("statictext", undefined, "1 %");
+        balkenProzent.preferredSize.width = 50;
+
+        balkenFlaeche.onDraw = function () {
+            var g = this.graphics;
+            var w = this.size.width;
+            var h = this.size.height;
+            var innen = 2;
+            var anteil = this.fortschrittWert / 100;
+            var fuellBreite = Math.round((w - innen * 2) * anteil);
+
+            var hintergrund = g.newBrush(g.BrushType.SOLID_COLOR, [0.18, 0.18, 0.18, 1]);
+            var fuellung = g.newBrush(g.BrushType.SOLID_COLOR, [0.10, 0.62, 0.82, 1]);
+            var rahmen = g.newPen(g.PenType.SOLID_COLOR, [0.48, 0.48, 0.48, 1], 1);
+
+            g.rectPath(0, 0, w, h);
+            g.fillPath(hintergrund);
+
+            if (fuellBreite > 0) {
+                g.rectPath(innen, innen, fuellBreite, h - innen * 2);
+                g.fillPath(fuellung);
+            }
+
+            g.rectPath(0.5, 0.5, w - 1, h - 1);
+            g.strokePath(rahmen);
+        };
 
         function balkenSetzen(prozent) {
             prozent = parseInt(prozent, 10);
@@ -1014,16 +1049,10 @@
             if (prozent < 0) prozent = 0;
             if (prozent > 100) prozent = 100;
 
-            var segmente = 40;
-            var gefuellt = Math.round((prozent / 100) * segmente);
-            var leer = segmente - gefuellt;
-            var text = "[";
-            var i;
-            for (i = 0; i < gefuellt; i++) text += "#";
-            for (i = 0; i < leer; i++) text += "-";
-            text += "] " + prozent + " %";
-            balkenText.text = text;
-            try { fortschritt.update(); } catch (e) {}
+            balkenFlaeche.fortschrittWert = prozent;
+            balkenProzent.text = prozent + " %";
+            try { balkenFlaeche.notify("onDraw"); } catch (e0) {}
+            try { fortschritt.update(); } catch (e1) {}
         }
 
         balkenSetzen(1);
