@@ -373,16 +373,98 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
     function zeigeSpaltenzuordnung(datei, csvDaten) {
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Spaltenzuordnung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
-        dlg.add("statictext", undefined, "Spaltenzuordnung"); dlg.add("statictext", undefined, "Ordne den internen Mailing-Feldern die passenden CSV-Spalten zu.");
-        var bereich = dlg.add("panel"); bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15; bereich.spacing = 8;
+        dlg.add("statictext", undefined, "Spaltenzuordnung");
+        dlg.add("statictext", undefined, "Ordne jeder Kundenspalte ein Mailing-Feld zu. Nicht ben\u00f6tigte Spalten bleiben auf \u201eNicht verwenden\u201c.");
+
         var interneFelder = ["Anrede", "Titel", "Vorname", "Nachname", "Firma", "Stra\u00dfe", "Hausnummer", "PLZ", "Ort", "Land", "Adresszusatz", "E-Mail", "Telefon", "Kundennummer", "Selektionsmerkmal", "Sonstiges"];
-        var csvSpalten = ["\u2014 nicht zugeordnet \u2014"]; var i; var j; for (i = 0; i < csvDaten.spalten.length; i++) csvSpalten.push(csvDaten.spalten[i]);
+        var auswahlFelder = ["Nicht verwenden"];
+        var i; var j;
+        for (i = 0; i < interneFelder.length; i++) auswahlFelder.push(interneFelder[i]);
+
+        function normalisiereSpaltenname(text) {
+            var wert = trimText(text).toLowerCase();
+            wert = wert.replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/g, "ue").replace(/\u00df/g, "ss");
+            return wert.replace(/[^a-z0-9]/g, "");
+        }
+
+        function vorgeschlagenesFeld(spaltenname) {
+            var name = normalisiereSpaltenname(spaltenname);
+            var aliases = {
+                "anrede":"Anrede", "salutation":"Anrede",
+                "titel":"Titel", "title":"Titel",
+                "vorname":"Vorname", "firstname":"Vorname", "first":"Vorname",
+                "nachname":"Nachname", "lastname":"Nachname", "surname":"Nachname", "familienname":"Nachname",
+                "firma":"Firma", "firmenname":"Firma", "unternehmen":"Firma", "company":"Firma",
+                "strasse":"Stra\u00dfe", "street":"Stra\u00dfe", "streetname":"Stra\u00dfe",
+                "hausnummer":"Hausnummer", "hausnr":"Hausnummer", "hnr":"Hausnummer", "streetnumber":"Hausnummer",
+                "plz":"PLZ", "postleitzahl":"PLZ", "zipcode":"PLZ", "zip":"PLZ", "postalcode":"PLZ",
+                "ort":"Ort", "stadt":"Ort", "city":"Ort",
+                "land":"Land", "country":"Land",
+                "adresszusatz":"Adresszusatz", "adresszusatz1":"Adresszusatz", "zusatz":"Adresszusatz", "address2":"Adresszusatz",
+                "email":"E-Mail", "emailadresse":"E-Mail", "mail":"E-Mail",
+                "telefon":"Telefon", "telefonnummer":"Telefon", "phone":"Telefon", "tel":"Telefon",
+                "kundennummer":"Kundennummer", "kundennr":"Kundennummer", "kundenummer":"Kundennummer", "customerid":"Kundennummer",
+                "selektionsmerkmal":"Selektionsmerkmal", "selektion":"Selektionsmerkmal",
+                "sonstiges":"Sonstiges"
+            };
+            return aliases[name] || null;
+        }
+
+        var kopf = dlg.add("group"); kopf.orientation = "row";
+        var kopfQuelle = kopf.add("statictext", undefined, "Kundenspalte"); kopfQuelle.preferredSize.width = 260;
+        kopf.add("statictext", undefined, "Mailing-Feld");
+
+        var bereich = dlg.add("panel"); bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15; bereich.spacing = 6;
         var zuordnungen = [];
-        for (i = 0; i < interneFelder.length; i++) { var zeile = bereich.add("group"); zeile.orientation = "row"; zeile.alignChildren = ["center", "center"]; var label = zeile.add("statictext", undefined, interneFelder[i] + ":"); label.preferredSize.width = 150; var auswahl = zeile.add("dropdownlist", undefined, csvSpalten); auswahl.preferredSize.width = 300; auswahl.selection = 0; for (j = 0; j < csvDaten.spalten.length; j++) if (csvDaten.spalten[j].toLowerCase() == interneFelder[i].toLowerCase()) { auswahl.selection = j + 1; break; } zuordnungen.push(auswahl); }
-        dlg.add("statictext", undefined, "Noch keine Zuordnung wird gespeichert oder verarbeitet.");
+        var verwendet = {};
+
+        for (i = 0; i < csvDaten.spalten.length; i++) {
+            var zeile = bereich.add("group"); zeile.orientation = "row"; zeile.alignChildren = ["center", "center"];
+            var label = zeile.add("statictext", undefined, csvDaten.spalten[i]); label.preferredSize.width = 260;
+            var auswahl = zeile.add("dropdownlist", undefined, auswahlFelder); auswahl.preferredSize.width = 220; auswahl.selection = 0;
+
+            var vorschlag = vorgeschlagenesFeld(csvDaten.spalten[i]);
+            if (vorschlag && !verwendet[vorschlag]) {
+                for (j = 1; j < auswahlFelder.length; j++) {
+                    if (auswahlFelder[j] == vorschlag) {
+                        auswahl.selection = j;
+                        verwendet[vorschlag] = true;
+                        break;
+                    }
+                }
+            }
+            zuordnungen.push(auswahl);
+        }
+
+        function pruefeDoppelteZuordnung(geaendert) {
+            if (!geaendert.selection || geaendert.selection.index == 0) return;
+            var feld = geaendert.selection.text;
+            var k;
+            for (k = 0; k < zuordnungen.length; k++) {
+                if (zuordnungen[k] != geaendert && zuordnungen[k].selection && zuordnungen[k].selection.text == feld) {
+                    alert("Das Mailing-Feld \u201e" + feld + "\u201c ist bereits der Kundenspalte \u201e" + csvDaten.spalten[k] + "\u201c zugeordnet.\n\nJedes Mailing-Feld kann nur einmal verwendet werden.");
+                    geaendert.selection = 0;
+                    return;
+                }
+            }
+        }
+
+        for (i = 0; i < zuordnungen.length; i++) {
+            zuordnungen[i].onChange = function () { pruefeDoppelteZuordnung(this); };
+        }
+
+        dlg.add("statictext", undefined, "Vorschl\u00e4ge werden nur anhand eindeutiger Spaltennamen vorbelegt. Du kannst jede Zuordnung \u00e4ndern.");
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var weiter = buttons.add("button", undefined, "Weiter");
         zurueck.onClick = function () { dlg.close(1); };
-        weiter.onClick = function () { var mapping = {}; var k; for (k = 0; k < interneFelder.length; k++) mapping[interneFelder[k]] = zuordnungen[k].selection ? zuordnungen[k].selection.text : null; dlg.close(2); zeigeAdressvorschau(datei, csvDaten, mapping); };
+        weiter.onClick = function () {
+            var mapping = {}; var k;
+            for (k = 0; k < interneFelder.length; k++) mapping[interneFelder[k]] = "\u2014 nicht zugeordnet \u2014";
+            for (k = 0; k < zuordnungen.length; k++) {
+                if (zuordnungen[k].selection && zuordnungen[k].selection.index > 0) mapping[zuordnungen[k].selection.text] = csvDaten.spalten[k];
+            }
+            dlg.close(2);
+            zeigeAdressvorschau(datei, csvDaten, mapping);
+        };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeCsvVorschau(datei, csvDaten);
     }
 
