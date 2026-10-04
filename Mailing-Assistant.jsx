@@ -539,21 +539,6 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         function aktualisiereVorschau() { if (!liste.selection) { vorschau.text = ""; return; } var index = liste.selection.index; vorschau.text = postalischeAdresse(csvDaten.datensaetze[index]); }
         liste.onChange = aktualisiereVorschau; if (maximaleVorschau > 0) { liste.selection = 0; aktualisiereVorschau(); } else vorschau.text = "Keine Datens\u00e4tze vorhanden.";
         dlg.add("statictext", undefined, maximaleVorschau + " von " + csvDaten.anzahl + " Datens\u00e4tzen stehen zur Vorschau bereit.");
-        if (postalHinweise.length > 0) {
-            var postalBereich = dlg.add("panel"); postalBereich.text = "Pr\u00fcfhinweise \u2013 postalische Pflichtfelder"; postalBereich.orientation = "column"; postalBereich.alignChildren = ["fill", "top"]; postalBereich.margins = 15;
-            var postalListe = postalBereich.add("listbox", undefined, [], {numberOfColumns: 5, showHeaders: true, columnTitles: ["Datensatz", "Empf\u00e4nger", "Anschrift", "PLZ / Ort", "Hinweis"], columnWidths: [70, 150, 170, 130, 300]}); postalListe.preferredSize = [850, 180];
-            var maximalePostalPruefung = Math.min(20, postalHinweise.length); var ph; var postalEintrag;
-            for (ph = 0; ph < maximalePostalPruefung; ph++) {
-                postalEintrag = postalListe.add("item", String(postalHinweise[ph].datensatz));
-                postalEintrag.subItems[0].text = postalHinweise[ph].empfaenger == "" ? "[leer]" : postalHinweise[ph].empfaenger;
-                postalEintrag.subItems[1].text = postalHinweise[ph].anschrift == "" ? "[leer]" : postalHinweise[ph].anschrift;
-                postalEintrag.subItems[2].text = postalHinweise[ph].ort == "" ? "[leer]" : postalHinweise[ph].ort;
-                postalEintrag.subItems[3].text = postalHinweise[ph].hinweis;
-            }
-            if (postalHinweise.length > maximalePostalPruefung) dlg.add("statictext", undefined, maximalePostalPruefung + " von " + postalHinweise.length + " postalischen Pr\u00fcfhinweisen werden angezeigt.");
-            dlg.add("statictext", undefined, "Diese Datens\u00e4tze werden nur markiert; es erfolgt keine automatische Korrektur.");
-        } else dlg.add("statictext", undefined, "Keine fehlenden postalischen Pflichtfelder erkannt.");
-
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeSpaltenzuordnung(datei, csvDaten); if (ergebnis == 2) zeigeDatenbereinigung(datei, csvDaten, mapping);
@@ -597,6 +582,21 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
             if (plzHinweise.length > maximalePlzPruefung) dlg.add("statictext", undefined, maximalePlzPruefung + " von " + plzHinweise.length + " PLZ-Pr\u00fcfhinweisen werden angezeigt.");
             dlg.add("statictext", undefined, "PLZ-Werte werden nicht automatisch erg\u00e4nzt oder ver\u00e4ndert.");
         } else dlg.add("statictext", undefined, "Keine ung\u00fcltigen deutschen PLZ erkannt.");
+        if (postalHinweise.length > 0) {
+            var postalBereich = dlg.add("panel"); postalBereich.text = "Pr\u00fcfhinweise \u2013 postalische Pflichtfelder"; postalBereich.orientation = "column"; postalBereich.alignChildren = ["fill", "top"]; postalBereich.margins = 15;
+            var postalListe = postalBereich.add("listbox", undefined, [], {numberOfColumns: 5, showHeaders: true, columnTitles: ["Datensatz", "Empf\u00e4nger", "Anschrift", "PLZ / Ort", "Hinweis"], columnWidths: [70, 150, 170, 130, 300]}); postalListe.preferredSize = [850, 180];
+            var maximalePostalPruefung = Math.min(20, postalHinweise.length); var ph; var postalEintrag;
+            for (ph = 0; ph < maximalePostalPruefung; ph++) {
+                postalEintrag = postalListe.add("item", String(postalHinweise[ph].datensatz));
+                postalEintrag.subItems[0].text = postalHinweise[ph].empfaenger == "" ? "[leer]" : postalHinweise[ph].empfaenger;
+                postalEintrag.subItems[1].text = postalHinweise[ph].anschrift == "" ? "[leer]" : postalHinweise[ph].anschrift;
+                postalEintrag.subItems[2].text = postalHinweise[ph].ort == "" ? "[leer]" : postalHinweise[ph].ort;
+                postalEintrag.subItems[3].text = postalHinweise[ph].hinweis;
+            }
+            if (postalHinweise.length > maximalePostalPruefung) dlg.add("statictext", undefined, maximalePostalPruefung + " von " + postalHinweise.length + " postalischen Pr\u00fcfhinweisen werden angezeigt.");
+            dlg.add("statictext", undefined, "Diese Datens\u00e4tze werden nur markiert; es erfolgt keine automatische Korrektur.");
+        } else dlg.add("statictext", undefined, "Keine fehlenden postalischen Pflichtfelder erkannt.");
+
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
         dlg.center(); var ergebnis = dlg.show(); if (ergebnis == 1) zeigeAdressvorschau(datei, csvDaten, mapping);
