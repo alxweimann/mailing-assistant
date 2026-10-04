@@ -2086,17 +2086,43 @@
             leeren();
             dlg.text="Mailing-Assistant \u2013 Dublettenpr\u00fcfung";
 
-            var status=csvDaten.freigabestatus||{};
+            if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
+            var status=csvDaten.freigabestatus;
             var ausgeschlossen={};
             var i;
             for(i=1;i<=csvDaten.anzahl;i++) {
                 if((status[i]||"\u00dcbernehmen")=="Ausschlie\u00dfen") ausgeschlossen[i]=true;
             }
 
+            function datensaetzeExaktGleich(nr1,nr2) {
+                var a=csvDaten.datensaetze[nr1-1];
+                var b=csvDaten.datensaetze[nr2-1];
+                if(!a||!b)return false;
+
+                var max=a.length>b.length?a.length:b.length;
+                var j;
+                for(j=0;j<max;j++){
+                    var av=j<a.length?String(a[j]):"";
+                    var bv=j<b.length?String(b[j]):"";
+                    if(av!=bv)return false;
+                }
+                return true;
+            }
+
             var alle=eindeutigeDublettenPruefen(csvDaten,mapping);
             var dubletten=[];
+            var automatischEntfernt=0;
+
             for(i=0;i<alle.length;i++) {
                 if(ausgeschlossen[alle[i].datensatz]||ausgeschlossen[alle[i].original]) continue;
+
+                if(datensaetzeExaktGleich(alle[i].original,alle[i].datensatz)){
+                    status[alle[i].datensatz]="Ausschlie\u00dfen";
+                    ausgeschlossen[alle[i].datensatz]=true;
+                    automatischEntfernt++;
+                    continue;
+                }
+
                 dubletten.push(alle[i]);
             }
 
@@ -2136,11 +2162,12 @@
 
             var info=seitenContainer.add("panel");
             info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
-            info.add("statictext",undefined,"Gefundene Dublettenpaare: "+dubletten.length);
+            info.add("statictext",undefined,"Manuell zu pr\u00fcfende Dublettenpaare: "+dubletten.length);
+            info.add("statictext",undefined,"Automatisch entfernte identische Dubletten: "+automatischEntfernt);
 
             if(dubletten.length==0) {
                 delete csvDaten.dublettenSeitenIndex;
-                seitenContainer.add("statictext",undefined,"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
+                seitenContainer.add("statictext",undefined,automatischEntfernt>0?"Alle verbleibenden Dubletten waren vollst\u00e4ndig identisch und wurden automatisch bereinigt.":"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
                 var buttonsLeer=seitenContainer.add("group");buttonsLeer.alignment="right";
                 var zurueckLeer=buttonsLeer.add("button",undefined,"Zur\u00fcck");
                 var weiterLeer=buttonsLeer.add("button",undefined,"Weiter zur Mailing-Verarbeitung");
