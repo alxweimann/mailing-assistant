@@ -1005,9 +1005,28 @@
         var statusText = fortschritt.add("statictext", undefined, "Excel-Datei wird ge\u00f6ffnet ...");
         statusText.preferredSize.width = 430;
 
-        var balken = fortschritt.add("progressbar", undefined, 0, 100);
-        balken.preferredSize = [430, 18];
-        balken.value = 1;
+        var balkenText = fortschritt.add("statictext", undefined, "");
+        balkenText.preferredSize.width = 430;
+
+        function balkenSetzen(prozent) {
+            prozent = parseInt(prozent, 10);
+            if (isNaN(prozent)) prozent = 0;
+            if (prozent < 0) prozent = 0;
+            if (prozent > 100) prozent = 100;
+
+            var segmente = 40;
+            var gefuellt = Math.round((prozent / 100) * segmente);
+            var leer = segmente - gefuellt;
+            var text = "[";
+            var i;
+            for (i = 0; i < gefuellt; i++) text += "#";
+            for (i = 0; i < leer; i++) text += "-";
+            text += "] " + prozent + " %";
+            balkenText.text = text;
+            try { fortschritt.update(); } catch (e) {}
+        }
+
+        balkenSetzen(1);
 
         var detail = fortschritt.add("statictext", undefined, "Bitte warten ...");
         detail.preferredSize.width = 430;
@@ -1064,18 +1083,18 @@
             if (isNaN(gesamt) || gesamt < 1) gesamt = 1;
 
             if (phase == "OPEN") {
-                balken.value = 2;
+                balkenSetzen(2);
                 statusText.text = "Excel-Datei wird ge\u00f6ffnet ...";
                 detail.text = "Bitte warten ...";
             } else if (phase == "PREP") {
-                balken.value = 5;
+                balkenSetzen(5);
                 statusText.text = "Tabellenblatt wird vorbereitet ...";
                 detail.text = "Datens\u00e4tze werden gez\u00e4hlt ...";
             } else if (phase == "READ") {
                 var prozent = Math.round((aktuell / gesamt) * 100);
                 if (prozent < 0) prozent = 0;
                 if (prozent > 100) prozent = 100;
-                balken.value = prozent;
+                balkenSetzen(prozent);
                 statusText.text = "Datens\u00e4tze eingelesen: " + aktuell + " von " + gesamt + " (" + prozent + " %)";
 
                 var vergangenMs = new Date().getTime() - startZeit;
@@ -1089,7 +1108,7 @@
                     detail.text = "Gesch\u00e4tzte Restzeit wird berechnet ...";
                 }
             } else if (phase == "SAVE") {
-                balken.value = 99;
+                balkenSetzen(99);
                 statusText.text = "Daten werden abgeschlossen ...";
                 detail.text = "Bitte noch einen Moment warten.";
             }
@@ -1187,7 +1206,7 @@
                 $.sleep(120);
             }
 
-            balken.value = 100;
+            balkenSetzen(100);
             statusText.text = "Excel-Daten vollst\u00e4ndig eingelesen.";
             detail.text = "100 %";
             try { fortschritt.update(); } catch (e7) {}
