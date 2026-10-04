@@ -1280,8 +1280,8 @@
         dlg.margins = 20;
 
         var seitenHost = dlg.add("group");
-        seitenHost.orientation = "column";
-        seitenHost.alignChildren = ["fill", "top"];
+        seitenHost.orientation = "stack";
+        seitenHost.alignChildren = ["fill", "fill"];
         seitenHost.alignment = ["fill", "fill"];
 
         var seitenContainer = null;
@@ -1290,24 +1290,23 @@
 
         function leeren() {
             if (seitenContainer) {
-                try { seitenHost.remove(seitenContainer); } catch (e0) {
-                    try { seitenContainer.visible = false; } catch (e1) {}
-                }
+                try { seitenContainer.visible = false; } catch (e0) {}
             }
+
             seitenContainer = seitenHost.add("group");
             seitenContainer.orientation = "column";
             seitenContainer.alignChildren = ["fill", "top"];
             seitenContainer.alignment = ["fill", "fill"];
             seitenContainer.spacing = 12;
             seitenContainer.margins = 0;
+            seitenContainer.visible = true;
         }
 
         function neuLayouten() {
             try {
                 seitenHost.layout.layout(true);
-                seitenHost.layout.resize();
                 dlg.layout.layout(true);
-                dlg.layout.resize();
+                dlg.update();
             } catch (e) {}
         }
 
