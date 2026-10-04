@@ -1865,10 +1865,10 @@
             basis = basis.replace(/[\\\/:*?"<>|]+/g, "_");
             var vorgeschlagenerName = basis + "_" + datumsCode + "_InDesign-Daten.txt";
 
-            var ziel = File.saveDialog(
+            var vorgeschlageneDatei = File(Folder.myDocuments.fsName + "/" + vorgeschlagenerName);
+            var ziel = vorgeschlageneDatei.saveDlg(
                 "InDesign-Datenquelle speichern",
-                "Textdatei:*.txt",
-                Folder.myDocuments.fsName + "/" + vorgeschlagenerName
+                "Textdatei:*.txt"
             );
             if (!ziel) return null;
 
