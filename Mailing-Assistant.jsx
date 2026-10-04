@@ -235,6 +235,73 @@
         return result;
     }
 
+    function zeigeFreigabeZusammenfassung(datei, csvDaten, mapping) {
+        var status = csvDaten.freigabestatus || {};
+        var uebernehmen = 0;
+        var ausschliessen = 0;
+        var pruefen = 0;
+        var offen = [];
+        var i;
+
+        for (i = 1; i <= csvDaten.anzahl; i++) {
+            var wert = status[i] || "\u00dcbernehmen";
+            if (wert == "\u00dcbernehmen") uebernehmen++;
+            else if (wert == "Ausschlie\u00dfen") ausschliessen++;
+            else {
+                pruefen++;
+                offen.push(i);
+            }
+        }
+
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Freigabe\u00fcbersicht");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+        dlg.add("statictext", undefined, "Freigabe\u00fcbersicht");
+
+        var info = dlg.add("panel");
+        info.orientation = "column";
+        info.alignChildren = ["left", "top"];
+        info.margins = 15;
+        info.spacing = 6;
+        info.add("statictext", undefined, "Gesamte Datens\u00e4tze: " + csvDaten.anzahl);
+        info.add("statictext", undefined, "\u00dcbernehmen: " + uebernehmen);
+        info.add("statictext", undefined, "Ausschlie\u00dfen: " + ausschliessen);
+        info.add("statictext", undefined, "Pr\u00fcfen: " + pruefen);
+
+        if (pruefen > 0) {
+            dlg.add("statictext", undefined, "Noch offen: Datensatz " + offen.join(", "));
+            dlg.add("statictext", undefined, "Der Mailing-Auftrag ist noch nicht vollst\u00e4ndig freigegeben.");
+        } else {
+            dlg.add("statictext", undefined, "Alle Datens\u00e4tze sind entschieden. Der Mailing-Auftrag kann weiterverarbeitet werden.");
+        }
+
+        var buttons = dlg.add("group");
+        buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+        var fertig = buttons.add("button", undefined, pruefen > 0 ? "Offene Datens\u00e4tze pr\u00fcfen" : "Fertig");
+
+        zurueck.onClick = function () { dlg.close(1); };
+        fertig.onClick = function () { dlg.close(pruefen > 0 ? 2 : 3); };
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1 || ergebnis == 2) {
+            zeigeDatensatzFreigabe(
+                datei,
+                csvDaten,
+                mapping,
+                deutschePlzPruefen(csvDaten, mapping),
+                postalischePflichtfelderPruefen(csvDaten, mapping),
+                eindeutigeDublettenPruefen(csvDaten, mapping),
+                problematischeZeichenErkennen(csvDaten)
+            );
+        }
+    }
+
     function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen) {
         var auffaellig = auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datensatzfreigabe");
@@ -295,6 +362,7 @@
                 else pruefen++;
             }
             alert("Freigabestatus gespeichert.\n\n\u00dcbernehmen: " + uebernehmen + "\nAusschlie\u00dfen: " + ausschliessen + "\nPr\u00fcfen: " + pruefen);
+            zeigeFreigabeZusammenfassung(datei, csvDaten, mapping);
         };
         dlg.center();
         var ergebnis = dlg.show();
