@@ -1816,7 +1816,18 @@
             var exportFelder = [];
             var i;
             for (i = 0; i < felder.length; i++) {
-                if (mappingSpaltenindex(csvDaten, mapping, felder[i]) >= 0) exportFelder.push(felder[i]);
+                var feldName = felder[i];
+                var index = mappingSpaltenindex(csvDaten, mapping, feldName);
+
+                if (feldName == "Straße" && index < 0 && mapping["Strasse"]) {
+                    var altMapping = {};
+                    var mk;
+                    for (mk in mapping) if (mapping.hasOwnProperty(mk)) altMapping[mk] = mapping[mk];
+                    altMapping["Straße"] = mapping["Strasse"];
+                    index = mappingSpaltenindex(csvDaten, altMapping, "Straße");
+                }
+
+                if (index >= 0) exportFelder.push(feldName);
             }
 
             if (exportFelder.length == 0) {
@@ -1848,7 +1859,16 @@
                 var ds = csvDaten.datensaetze[nr - 1];
                 var werte = [String(nr)];
                 for (i = 0; i < exportFelder.length; i++) {
-                    werte.push(bereinigeExportWert(wertAusDatensatz(mapping, ds, exportFelder[i])));
+                    var feld = exportFelder[i];
+                    var wert = wertAusDatensatz(mapping, ds, feld);
+                    if (feld == "Straße" && wert == "" && mapping["Strasse"]) {
+                        var altMap = {};
+                        var key;
+                        for (key in mapping) if (mapping.hasOwnProperty(key)) altMap[key] = mapping[key];
+                        altMap["Straße"] = mapping["Strasse"];
+                        wert = wertAusDatensatz(altMap, ds, "Straße");
+                    }
+                    werte.push(bereinigeExportWert(wert));
                 }
                 zeilen.push(werte.join("\t"));
             }
