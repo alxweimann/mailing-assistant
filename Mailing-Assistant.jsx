@@ -164,8 +164,11 @@
             if (hausnummer != "" &&
                 vergleichswert(ergebnis.erkannteHausnummer) != vergleichswert(hausnummer)) {
                 ergebnis.konflikt = true;
-                ergebnis.hinweis = "Hausnummer widerspr\u00fcchlich: Stra\u00dfe enth\u00e4lt " +
-                    ergebnis.erkannteHausnummer + ", separates Feld enth\u00e4lt " + hausnummer + ".";
+                var ue = String.fromCharCode(252);
+                var ss = String.fromCharCode(223);
+                var ae = String.fromCharCode(228);
+                ergebnis.hinweis = "Hausnummer widerspr" + ue + "chlich: Stra" + ss + "e enth" + ae + "lt " +
+                    ergebnis.erkannteHausnummer + ", separates Feld enth" + ae + "lt " + hausnummer + ".";
             }
             return ergebnis;
         }
