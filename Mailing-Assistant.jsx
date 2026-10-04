@@ -1673,6 +1673,25 @@
                 0;
 
 
+            for (
+                j = 0;
+                j < csvDaten.spalten.length;
+                j++
+            ) {
+
+                if (
+                    csvDaten.spalten[j].toLowerCase() ==
+                    interneFelder[i].toLowerCase()
+                ) {
+
+                    auswahl.selection =
+                        j + 1;
+
+                    break;
+                }
+            }
+
+
             zuordnungen.push(
                 auswahl
             );
