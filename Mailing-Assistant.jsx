@@ -2,7 +2,12 @@
 
 (function () {
 
+    // ============================================================
+    // ALLGEMEINE HILFSFUNKTIONEN
+    // ============================================================
+
     function heutigesDatum() {
+
         var heute = new Date();
         var tag = heute.getDate();
         var monat = heute.getMonth() + 1;
@@ -20,19 +25,41 @@
     }
 
 
-    function csvDatensaetzeZaehlen(datei) {
+    function trimText(text) {
+
+        if (text === null || text === undefined) {
+            return "";
+        }
+
+        return String(text).replace(/^\s+|\s+$/g, "");
+    }
+
+
+    // ============================================================
+    // CSV
+    // ============================================================
+
+    function csvDateiLesen(datei) {
 
         if (!datei || !datei.exists) {
-            throw new Error("Die ausgewählte CSV-Datei wurde nicht gefunden.");
+            throw new Error(
+                "Die ausgewählte CSV-Datei wurde nicht gefunden."
+            );
         }
+
 
         datei.encoding = "UTF-8";
 
+
         if (!datei.open("r")) {
-            throw new Error("Die CSV-Datei konnte nicht geöffnet werden.");
+            throw new Error(
+                "Die CSV-Datei konnte nicht geöffnet werden."
+            );
         }
 
+
         var inhalt = datei.read();
+
         datei.close();
 
 
@@ -45,50 +72,190 @@
         }
 
 
-        /*
-            CSV zeilenweise zerlegen.
+        if (trimText(inhalt) == "") {
+            throw new Error(
+                "Die CSV-Datei ist leer."
+            );
+        }
 
-            Zeilenumbrüche innerhalb von Anführungszeichen
-            werden dabei nicht als neuer Datensatz behandelt.
-        */
 
-        var zeilen = [];
-        var aktuelleZeile = "";
+        // --------------------------------------------------------
+        // Trennzeichen automatisch bestimmen
+        // --------------------------------------------------------
+
+        var ersteZeile = "";
         var inAnfuehrungszeichen = false;
         var i;
         var zeichen;
+
 
         for (i = 0; i < inhalt.length; i++) {
 
             zeichen = inhalt.charAt(i);
 
+
             if (zeichen == '"') {
 
-                // Doppeltes Anführungszeichen innerhalb eines Feldes
                 if (
                     inAnfuehrungszeichen &&
                     i + 1 < inhalt.length &&
                     inhalt.charAt(i + 1) == '"'
                 ) {
-                    aktuelleZeile += '""';
+                    ersteZeile += '""';
                     i++;
                     continue;
                 }
 
-                inAnfuehrungszeichen = !inAnfuehrungszeichen;
-                aktuelleZeile += zeichen;
+                inAnfuehrungszeichen =
+                    !inAnfuehrungszeichen;
+
+                ersteZeile += zeichen;
+
                 continue;
             }
 
 
             if (
                 !inAnfuehrungszeichen &&
-                (zeichen == "\r" || zeichen == "\n")
+                (
+                    zeichen == "\r" ||
+                    zeichen == "\n"
+                )
+            ) {
+                break;
+            }
+
+
+            ersteZeile += zeichen;
+        }
+
+
+        var anzahlSemikolon =
+            zaehleTrennzeichen(
+                ersteZeile,
+                ";"
+            );
+
+        var anzahlKomma =
+            zaehleTrennzeichen(
+                ersteZeile,
+                ","
+            );
+
+        var anzahlTab =
+            zaehleTrennzeichen(
+                ersteZeile,
+                "\t"
+            );
+
+
+        var trennzeichen = ";";
+
+
+        if (
+            anzahlKomma > anzahlSemikolon &&
+            anzahlKomma >= anzahlTab
+        ) {
+            trennzeichen = ",";
+        }
+
+
+        if (
+            anzahlTab > anzahlSemikolon &&
+            anzahlTab > anzahlKomma
+        ) {
+            trennzeichen = "\t";
+        }
+
+
+        // --------------------------------------------------------
+        // CSV vollständig parsen
+        // --------------------------------------------------------
+
+        var zeilen = [];
+        var aktuelleZeile = [];
+        var aktuellesFeld = "";
+
+        inAnfuehrungszeichen = false;
+
+
+        for (i = 0; i < inhalt.length; i++) {
+
+            zeichen = inhalt.charAt(i);
+
+
+            // Anführungszeichen
+            if (zeichen == '"') {
+
+                if (
+                    inAnfuehrungszeichen &&
+                    i + 1 < inhalt.length &&
+                    inhalt.charAt(i + 1) == '"'
+                ) {
+
+                    aktuellesFeld += '"';
+
+                    i++;
+
+                    continue;
+                }
+
+
+                inAnfuehrungszeichen =
+                    !inAnfuehrungszeichen;
+
+                continue;
+            }
+
+
+            // Trennzeichen
+            if (
+                !inAnfuehrungszeichen &&
+                zeichen == trennzeichen
             ) {
 
-                zeilen.push(aktuelleZeile);
-                aktuelleZeile = "";
+                aktuelleZeile.push(
+                    aktuellesFeld
+                );
 
+                aktuellesFeld = "";
+
+                continue;
+            }
+
+
+            // Zeilenende
+            if (
+                !inAnfuehrungszeichen &&
+                (
+                    zeichen == "\r" ||
+                    zeichen == "\n"
+                )
+            ) {
+
+                aktuelleZeile.push(
+                    aktuellesFeld
+                );
+
+                aktuellesFeld = "";
+
+
+                if (
+                    !istCsvZeileLeer(
+                        aktuelleZeile
+                    )
+                ) {
+
+                    zeilen.push(
+                        aktuelleZeile
+                    );
+                }
+
+
+                aktuelleZeile = [];
+
+
+                // Windows CRLF
                 if (
                     zeichen == "\r" &&
                     i + 1 < inhalt.length &&
@@ -97,48 +264,159 @@
                     i++;
                 }
 
+
                 continue;
             }
 
-            aktuelleZeile += zeichen;
+
+            aktuellesFeld += zeichen;
         }
 
 
-        if (aktuelleZeile != "") {
-            zeilen.push(aktuelleZeile);
-        }
+        // Letzte Zeile übernehmen
+        if (
+            aktuellesFeld != "" ||
+            aktuelleZeile.length > 0
+        ) {
 
-
-        // Komplett leere Zeilen entfernen
-        var nichtLeereZeilen = [];
-
-        for (i = 0; i < zeilen.length; i++) {
-
-            var pruefzeile = zeilen[i];
-
-            // Trennzeichen, Leerzeichen und Anführungszeichen
-            // für die Leerprüfung entfernen
-            var bereinigt = pruefzeile.replace(
-                /[\s;,\t"]/g,
-                ""
+            aktuelleZeile.push(
+                aktuellesFeld
             );
 
-            if (bereinigt != "") {
-                nichtLeereZeilen.push(pruefzeile);
+
+            if (
+                !istCsvZeileLeer(
+                    aktuelleZeile
+                )
+            ) {
+
+                zeilen.push(
+                    aktuelleZeile
+                );
             }
         }
 
 
-        // Keine Kopfzeile vorhanden
-        if (nichtLeereZeilen.length == 0) {
-            return 0;
+        if (zeilen.length == 0) {
+
+            throw new Error(
+                "Die CSV-Datei enthält keine Daten."
+            );
         }
 
 
-        // Erste nicht-leere Zeile = Spaltenüberschriften
-        return nichtLeereZeilen.length - 1;
+        // Erste nicht-leere Zeile = Überschriften
+        var spalten = zeilen[0];
+
+        var datensaetze = [];
+
+
+        for (i = 1; i < zeilen.length; i++) {
+
+            if (
+                !istCsvZeileLeer(
+                    zeilen[i]
+                )
+            ) {
+
+                datensaetze.push(
+                    zeilen[i]
+                );
+            }
+        }
+
+
+        return {
+
+            spalten: spalten,
+
+            datensaetze: datensaetze,
+
+            anzahl:
+                datensaetze.length,
+
+            trennzeichen:
+                trennzeichen
+        };
     }
 
+
+    function zaehleTrennzeichen(
+        text,
+        trennzeichen
+    ) {
+
+        var anzahl = 0;
+        var inAnfuehrungszeichen = false;
+        var i;
+        var zeichen;
+
+
+        for (i = 0; i < text.length; i++) {
+
+            zeichen = text.charAt(i);
+
+
+            if (zeichen == '"') {
+
+                if (
+                    inAnfuehrungszeichen &&
+                    i + 1 < text.length &&
+                    text.charAt(i + 1) == '"'
+                ) {
+
+                    i++;
+
+                    continue;
+                }
+
+
+                inAnfuehrungszeichen =
+                    !inAnfuehrungszeichen;
+
+                continue;
+            }
+
+
+            if (
+                !inAnfuehrungszeichen &&
+                zeichen == trennzeichen
+            ) {
+
+                anzahl++;
+            }
+        }
+
+
+        return anzahl;
+    }
+
+
+    function istCsvZeileLeer(zeile) {
+
+        var i;
+
+
+        for (i = 0; i < zeile.length; i++) {
+
+            if (
+                trimText(
+                    zeile[i]
+                ) != ""
+            ) {
+
+                return false;
+            }
+        }
+
+
+        return true;
+    }
+
+
+    // ============================================================
+    // STARTSEITE
+    // ============================================================
 
     function zeigeStartseite() {
 
@@ -147,10 +425,18 @@
             "Mailing-Assistant"
         );
 
+
         dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+
+        dlg.alignChildren = [
+            "fill",
+            "top"
+        ];
+
         dlg.spacing = 12;
+
         dlg.margins = 20;
+
 
         dlg.add(
             "statictext",
@@ -158,11 +444,13 @@
             "Mailing-Assistant"
         );
 
+
         var neuerAuftrag = dlg.add(
             "button",
             undefined,
             "Neuer Mailing-Auftrag"
         );
+
 
         dlg.add(
             "button",
@@ -170,11 +458,13 @@
             "Gespeicherten Auftrag öffnen"
         );
 
+
         dlg.add(
             "button",
             undefined,
             "Auftrag duplizieren"
         );
+
 
         dlg.add(
             "button",
@@ -182,14 +472,20 @@
             "Nachproduktion"
         );
 
-        var trennlinie = dlg.add("panel");
-        trennlinie.alignment = "fill";
+
+        var trennlinie =
+            dlg.add("panel");
+
+        trennlinie.alignment =
+            "fill";
+
 
         dlg.add(
             "statictext",
             undefined,
             "Zuletzt verwendet"
         );
+
 
         var zuletztListe = dlg.add(
             "listbox",
@@ -200,39 +496,63 @@
             }
         );
 
-        zuletztListe.preferredSize = [520, 160];
+
+        zuletztListe.preferredSize =
+            [520, 160];
+
 
         zuletztListe.add(
             "item",
             "Noch keine Mailing-Aufträge vorhanden"
         );
 
-        var buttons = dlg.add("group");
-        buttons.alignment = "right";
 
-        var schliessen = buttons.add(
-            "button",
-            undefined,
-            "Schließen"
-        );
+        var buttons =
+            dlg.add("group");
 
-        schliessen.onClick = function () {
-            dlg.close(0);
-        };
+        buttons.alignment =
+            "right";
 
-        neuerAuftrag.onClick = function () {
-            dlg.close(1);
-        };
+
+        var schliessen =
+            buttons.add(
+                "button",
+                undefined,
+                "Schließen"
+            );
+
+
+        schliessen.onClick =
+            function () {
+
+                dlg.close(0);
+            };
+
+
+        neuerAuftrag.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
 
         dlg.center();
 
-        var ergebnis = dlg.show();
+
+        var ergebnis =
+            dlg.show();
+
 
         if (ergebnis == 1) {
+
             zeigeNeuenAuftrag();
         }
     }
 
+
+    // ============================================================
+    // NEUER AUFTRAG
+    // ============================================================
 
     function zeigeNeuenAuftrag() {
 
@@ -241,10 +561,18 @@
             "Mailing-Assistant – Neuer Auftrag"
         );
 
+
         dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+
+        dlg.alignChildren = [
+            "fill",
+            "top"
+        ];
+
         dlg.spacing = 12;
+
         dlg.margins = 20;
+
 
         dlg.add(
             "statictext",
@@ -252,213 +580,355 @@
             "Neuer Mailing-Auftrag"
         );
 
-        var formular = dlg.add("panel");
-        formular.orientation = "column";
-        formular.alignChildren = ["fill", "top"];
+
+        var formular =
+            dlg.add("panel");
+
+        formular.orientation =
+            "column";
+
+        formular.alignChildren = [
+            "fill",
+            "top"
+        ];
+
         formular.margins = 15;
+
         formular.spacing = 10;
 
 
+        // --------------------------------------------------------
         // Auftragsnummer
-        var zeileAuftrag = formular.add("group");
-        zeileAuftrag.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelAuftrag = zeileAuftrag.add(
-            "statictext",
-            undefined,
-            "Auftragsnummer:"
-        );
+        var zeileAuftrag =
+            formular.add("group");
 
-        labelAuftrag.preferredSize.width = 160;
-
-        var feldAuftrag = zeileAuftrag.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        feldAuftrag.characters = 30;
+        zeileAuftrag.orientation =
+            "row";
 
 
+        var labelAuftrag =
+            zeileAuftrag.add(
+                "statictext",
+                undefined,
+                "Auftragsnummer:"
+            );
+
+
+        labelAuftrag.preferredSize.width =
+            160;
+
+
+        var feldAuftrag =
+            zeileAuftrag.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldAuftrag.characters =
+            30;
+
+
+        // --------------------------------------------------------
         // Kunde
-        var zeileKunde = formular.add("group");
-        zeileKunde.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelKunde = zeileKunde.add(
-            "statictext",
-            undefined,
-            "Kunde:"
-        );
+        var zeileKunde =
+            formular.add("group");
 
-        labelKunde.preferredSize.width = 160;
-
-        var feldKunde = zeileKunde.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        feldKunde.characters = 30;
+        zeileKunde.orientation =
+            "row";
 
 
+        var labelKunde =
+            zeileKunde.add(
+                "statictext",
+                undefined,
+                "Kunde:"
+            );
+
+
+        labelKunde.preferredSize.width =
+            160;
+
+
+        var feldKunde =
+            zeileKunde.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldKunde.characters =
+            30;
+
+
+        // --------------------------------------------------------
         // Bezeichnung
-        var zeileBezeichnung = formular.add("group");
-        zeileBezeichnung.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelBezeichnung = zeileBezeichnung.add(
-            "statictext",
-            undefined,
-            "Bezeichnung:"
-        );
+        var zeileBezeichnung =
+            formular.add("group");
 
-        labelBezeichnung.preferredSize.width = 160;
-
-        var feldBezeichnung = zeileBezeichnung.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        feldBezeichnung.characters = 30;
+        zeileBezeichnung.orientation =
+            "row";
 
 
+        var labelBezeichnung =
+            zeileBezeichnung.add(
+                "statictext",
+                undefined,
+                "Bezeichnung:"
+            );
+
+
+        labelBezeichnung.preferredSize.width =
+            160;
+
+
+        var feldBezeichnung =
+            zeileBezeichnung.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldBezeichnung.characters =
+            30;
+
+
+        // --------------------------------------------------------
         // Produktionsdatum
-        var zeileProduktionsdatum = formular.add("group");
-        zeileProduktionsdatum.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelProduktionsdatum = zeileProduktionsdatum.add(
-            "statictext",
-            undefined,
-            "Produktionsdatum:"
-        );
+        var zeileProduktionsdatum =
+            formular.add("group");
 
-        labelProduktionsdatum.preferredSize.width = 160;
-
-        var feldProduktionsdatum = zeileProduktionsdatum.add(
-            "edittext",
-            undefined,
-            heutigesDatum()
-        );
-
-        feldProduktionsdatum.characters = 30;
+        zeileProduktionsdatum.orientation =
+            "row";
 
 
+        var labelProduktionsdatum =
+            zeileProduktionsdatum.add(
+                "statictext",
+                undefined,
+                "Produktionsdatum:"
+            );
+
+
+        labelProduktionsdatum.preferredSize.width =
+            160;
+
+
+        var feldProduktionsdatum =
+            zeileProduktionsdatum.add(
+                "edittext",
+                undefined,
+                heutigesDatum()
+            );
+
+
+        feldProduktionsdatum.characters =
+            30;
+
+
+        // --------------------------------------------------------
         // Versanddatum
-        var zeileVersanddatum = formular.add("group");
-        zeileVersanddatum.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelVersanddatum = zeileVersanddatum.add(
-            "statictext",
-            undefined,
-            "Versanddatum:"
-        );
+        var zeileVersanddatum =
+            formular.add("group");
 
-        labelVersanddatum.preferredSize.width = 160;
-
-        var feldVersanddatum = zeileVersanddatum.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        feldVersanddatum.characters = 30;
+        zeileVersanddatum.orientation =
+            "row";
 
 
+        var labelVersanddatum =
+            zeileVersanddatum.add(
+                "statictext",
+                undefined,
+                "Versanddatum:"
+            );
+
+
+        labelVersanddatum.preferredSize.width =
+            160;
+
+
+        var feldVersanddatum =
+            zeileVersanddatum.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldVersanddatum.characters =
+            30;
+
+
+        // --------------------------------------------------------
         // Versandart
-        var zeileVersandart = formular.add("group");
-        zeileVersandart.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelVersandart = zeileVersandart.add(
-            "statictext",
-            undefined,
-            "Versandart:"
-        );
+        var zeileVersandart =
+            formular.add("group");
 
-        labelVersandart.preferredSize.width = 160;
-
-        var feldVersandart = zeileVersandart.add(
-            "dropdownlist",
-            undefined,
-            [
-                "Dialogpost",
-                "Briefpost",
-                "Sonstiges"
-            ]
-        );
-
-        feldVersandart.preferredSize.width = 308;
-        feldVersandart.selection = 0;
+        zeileVersandart.orientation =
+            "row";
 
 
+        var labelVersandart =
+            zeileVersandart.add(
+                "statictext",
+                undefined,
+                "Versandart:"
+            );
+
+
+        labelVersandart.preferredSize.width =
+            160;
+
+
+        var feldVersandart =
+            zeileVersandart.add(
+                "dropdownlist",
+                undefined,
+                [
+                    "Dialogpost",
+                    "Briefpost",
+                    "Sonstiges"
+                ]
+            );
+
+
+        feldVersandart.preferredSize.width =
+            308;
+
+        feldVersandart.selection =
+            0;
+
+
+        // --------------------------------------------------------
         // Sonstiges
-        var zeileSonstiges = formular.add("group");
-        zeileSonstiges.orientation = "row";
-        zeileSonstiges.visible = false;
+        // --------------------------------------------------------
 
-        var labelSonstiges = zeileSonstiges.add(
-            "statictext",
-            undefined,
-            "Sonstiges:"
-        );
+        var zeileSonstiges =
+            formular.add("group");
 
-        labelSonstiges.preferredSize.width = 160;
+        zeileSonstiges.orientation =
+            "row";
 
-        var feldSonstiges = zeileSonstiges.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        feldSonstiges.characters = 30;
+        zeileSonstiges.visible =
+            false;
 
 
-        feldVersandart.onChange = function () {
-
-            if (
-                feldVersandart.selection &&
-                feldVersandart.selection.text == "Sonstiges"
-            ) {
-                zeileSonstiges.visible = true;
-            } else {
-                zeileSonstiges.visible = false;
-            }
-
-            dlg.layout.layout(true);
-        };
+        var labelSonstiges =
+            zeileSonstiges.add(
+                "statictext",
+                undefined,
+                "Sonstiges:"
+            );
 
 
+        labelSonstiges.preferredSize.width =
+            160;
+
+
+        var feldSonstiges =
+            zeileSonstiges.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldSonstiges.characters =
+            30;
+
+
+        feldVersandart.onChange =
+            function () {
+
+                if (
+                    feldVersandart.selection &&
+                    feldVersandart.selection.text ==
+                        "Sonstiges"
+                ) {
+
+                    zeileSonstiges.visible =
+                        true;
+
+                } else {
+
+                    zeileSonstiges.visible =
+                        false;
+                }
+
+
+                dlg.layout.layout(true);
+            };
+
+
+        // --------------------------------------------------------
         // Soll-Auflage
-        var zeileSollAuflage = formular.add("group");
-        zeileSollAuflage.orientation = "row";
+        // --------------------------------------------------------
 
-        var labelSollAuflage = zeileSollAuflage.add(
-            "statictext",
-            undefined,
-            "Soll-Auflage (optional):"
-        );
+        var zeileSollAuflage =
+            formular.add("group");
 
-        labelSollAuflage.preferredSize.width = 160;
+        zeileSollAuflage.orientation =
+            "row";
 
-        var feldSollAuflage = zeileSollAuflage.add(
-            "edittext",
-            undefined,
-            ""
-        );
 
-        feldSollAuflage.characters = 30;
+        var labelSollAuflage =
+            zeileSollAuflage.add(
+                "statictext",
+                undefined,
+                "Soll-Auflage (optional):"
+            );
+
+
+        labelSollAuflage.preferredSize.width =
+            160;
+
+
+        var feldSollAuflage =
+            zeileSollAuflage.add(
+                "edittext",
+                undefined,
+                ""
+            );
+
+
+        feldSollAuflage.characters =
+            30;
 
 
         // Hinweis
-        var zeileSollHinweis = formular.add("group");
-        zeileSollHinweis.orientation = "row";
+        var zeileSollHinweis =
+            formular.add("group");
 
-        var abstandSollHinweis = zeileSollHinweis.add(
-            "statictext",
-            undefined,
-            ""
-        );
+        zeileSollHinweis.orientation =
+            "row";
 
-        abstandSollHinweis.preferredSize.width = 160;
+
+        var abstandSollHinweis =
+            zeileSollHinweis.add(
+                "statictext",
+                undefined,
+                ""
+            );
+
+
+        abstandSollHinweis.preferredSize.width =
+            160;
+
 
         zeileSollHinweis.add(
             "statictext",
@@ -467,62 +937,97 @@
         );
 
 
+        // --------------------------------------------------------
         // Buttons
-        var buttons = dlg.add("group");
-        buttons.alignment = "right";
+        // --------------------------------------------------------
 
-        var zurueck = buttons.add(
-            "button",
-            undefined,
-            "Zurück"
-        );
+        var buttons =
+            dlg.add("group");
 
-        var weiter = buttons.add(
-            "button",
-            undefined,
-            "Weiter"
-        );
+        buttons.alignment =
+            "right";
 
 
-        zurueck.onClick = function () {
-            dlg.close(1);
-        };
+        var zurueck =
+            buttons.add(
+                "button",
+                undefined,
+                "Zurück"
+            );
 
 
-        weiter.onClick = function () {
+        var weiter =
+            buttons.add(
+                "button",
+                undefined,
+                "Weiter"
+            );
 
-            if (feldSollAuflage.text != "") {
+
+        zurueck.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
+
+        weiter.onClick =
+            function () {
 
                 if (
-                    !/^\d+$/.test(feldSollAuflage.text) ||
-                    parseInt(feldSollAuflage.text, 10) <= 0
+                    feldSollAuflage.text != ""
                 ) {
-                    alert(
-                        "Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben."
-                    );
 
-                    feldSollAuflage.active = true;
-                    return;
+                    if (
+                        !/^\d+$/.test(
+                            feldSollAuflage.text
+                        ) ||
+                        parseInt(
+                            feldSollAuflage.text,
+                            10
+                        ) <= 0
+                    ) {
+
+                        alert(
+                            "Bitte bei der Soll-Auflage eine ganze positive Zahl eingeben."
+                        );
+
+
+                        feldSollAuflage.active =
+                            true;
+
+                        return;
+                    }
                 }
-            }
 
-            dlg.close(2);
-        };
+
+                dlg.close(2);
+            };
 
 
         dlg.center();
 
-        var ergebnis = dlg.show();
+
+        var ergebnis =
+            dlg.show();
+
 
         if (ergebnis == 1) {
+
             zeigeStartseite();
         }
 
+
         if (ergebnis == 2) {
+
             zeigeDatenquelle();
         }
     }
 
+
+    // ============================================================
+    // DATENQUELLE
+    // ============================================================
 
     function zeigeDatenquelle() {
 
@@ -531,9 +1036,17 @@
             "Mailing-Assistant – Datenquelle"
         );
 
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+
+        dlg.orientation =
+            "column";
+
+        dlg.alignChildren = [
+            "fill",
+            "top"
+        ];
+
         dlg.spacing = 12;
+
         dlg.margins = 20;
 
 
@@ -544,11 +1057,22 @@
         );
 
 
-        var bereich = dlg.add("panel");
-        bereich.orientation = "column";
-        bereich.alignChildren = ["fill", "top"];
-        bereich.margins = 15;
-        bereich.spacing = 10;
+        var bereich =
+            dlg.add("panel");
+
+        bereich.orientation =
+            "column";
+
+        bereich.alignChildren = [
+            "fill",
+            "top"
+        ];
+
+        bereich.margins =
+            15;
+
+        bereich.spacing =
+            10;
 
 
         bereich.add(
@@ -558,128 +1082,438 @@
         );
 
 
-        var dateizeile = bereich.add("group");
-        dateizeile.orientation = "row";
-        dateizeile.alignChildren = ["fill", "center"];
+        var dateizeile =
+            bereich.add("group");
+
+        dateizeile.orientation =
+            "row";
+
+        dateizeile.alignChildren = [
+            "fill",
+            "center"
+        ];
 
 
-        var dateifeld = dateizeile.add(
-            "edittext",
-            undefined,
-            ""
-        );
-
-        dateifeld.characters = 42;
-        dateifeld.enabled = false;
+        var dateifeld =
+            dateizeile.add(
+                "edittext",
+                undefined,
+                ""
+            );
 
 
-        var dateiAuswaehlen = dateizeile.add(
-            "button",
-            undefined,
-            "Datei auswählen..."
-        );
+        dateifeld.characters =
+            42;
+
+        dateifeld.enabled =
+            false;
 
 
-        var buttons = dlg.add("group");
-        buttons.alignment = "right";
+        var dateiAuswaehlen =
+            dateizeile.add(
+                "button",
+                undefined,
+                "Datei auswählen..."
+            );
 
 
-        var zurueck = buttons.add(
-            "button",
-            undefined,
-            "Zurück"
-        );
+        var buttons =
+            dlg.add("group");
+
+        buttons.alignment =
+            "right";
 
 
-        var weiter = buttons.add(
-            "button",
-            undefined,
-            "Weiter"
-        );
-
-        weiter.enabled = false;
-
-
-        var ausgewaehlteDatei = null;
+        var zurueck =
+            buttons.add(
+                "button",
+                undefined,
+                "Zurück"
+            );
 
 
-        dateiAuswaehlen.onClick = function () {
-
-          var datei = File.openDialog(
-    "Mailing-Datendatei auswählen",
-    "Mailing-Dateien:*.xlsx;*.csv"
-);
-
-            if (datei) {
-
-                ausgewaehlteDatei = datei;
-
-                dateifeld.text = datei.fsName;
-                weiter.enabled = true;
-            }
-        };
+        var weiter =
+            buttons.add(
+                "button",
+                undefined,
+                "Weiter"
+            );
 
 
-        zurueck.onClick = function () {
-            dlg.close(1);
-        };
+        weiter.enabled =
+            false;
 
 
-        weiter.onClick = function () {
-
-            if (!ausgewaehlteDatei) {
-                return;
-            }
+        var ausgewaehlteDatei =
+            null;
 
 
-            if (/\.xlsx$/i.test(ausgewaehlteDatei.name)) {
+        dateiAuswaehlen.onClick =
+            function () {
 
-                alert(
-                    "XLSX-Dateien können in diesem Entwicklungsschritt noch nicht eingelesen werden.\n\n" +
-                    "Bitte für den aktuellen Test die CSV-Datei auswählen."
-                );
-
-                return;
-            }
-
-
-            if (/\.csv$/i.test(ausgewaehlteDatei.name)) {
-
-                try {
-
-                    var anzahl = csvDatensaetzeZaehlen(
-                        ausgewaehlteDatei
+                var datei =
+                    File.openDialog(
+                        "Mailing-Datendatei auswählen",
+                        "Mailing-Dateien:*.xlsx;*.csv"
                     );
 
-                    alert(
-                        "CSV-Datei erfolgreich gelesen.\n\n" +
-                        anzahl +
-                        " Datensätze gefunden."
-                    );
 
-                } catch (fehler) {
+                if (datei) {
+
+                    ausgewaehlteDatei =
+                        datei;
+
+
+                    dateifeld.text =
+                        datei.fsName;
+
+
+                    weiter.enabled =
+                        true;
+                }
+            };
+
+
+        zurueck.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
+
+        weiter.onClick =
+            function () {
+
+                if (!ausgewaehlteDatei) {
+                    return;
+                }
+
+
+                // XLSX kommt später
+                if (
+                    /\.xlsx$/i.test(
+                        ausgewaehlteDatei.name
+                    )
+                ) {
 
                     alert(
-                        "Die CSV-Datei konnte nicht gelesen werden.\n\n" +
-                        "Fehler: " +
-                        fehler
+                        "XLSX-Dateien können in diesem Entwicklungsschritt noch nicht eingelesen werden.\n\n" +
+                        "Bitte für den aktuellen Test die CSV-Datei auswählen."
                     );
 
                     return;
                 }
-            }
-        };
+
+
+                // CSV
+                if (
+                    /\.csv$/i.test(
+                        ausgewaehlteDatei.name
+                    )
+                ) {
+
+                    try {
+
+                        var csvDaten =
+                            csvDateiLesen(
+                                ausgewaehlteDatei
+                            );
+
+
+                        dlg.close(2);
+
+
+                        zeigeCsvVorschau(
+                            ausgewaehlteDatei,
+                            csvDaten
+                        );
+
+
+                    } catch (fehler) {
+
+                        alert(
+                            "Die CSV-Datei konnte nicht gelesen werden.\n\n" +
+                            "Fehler: " +
+                            fehler
+                        );
+
+                        return;
+                    }
+                }
+            };
 
 
         dlg.center();
 
-        var ergebnis = dlg.show();
+
+        var ergebnis =
+            dlg.show();
+
 
         if (ergebnis == 1) {
+
             zeigeNeuenAuftrag();
         }
     }
 
+
+    // ============================================================
+    // CSV-VORSCHAU
+    // ============================================================
+
+    function zeigeCsvVorschau(
+        datei,
+        csvDaten
+    ) {
+
+        var dlg = new Window(
+            "dialog",
+            "Mailing-Assistant – Datenvorschau"
+        );
+
+
+        dlg.orientation =
+            "column";
+
+        dlg.alignChildren = [
+            "fill",
+            "top"
+        ];
+
+        dlg.spacing =
+            12;
+
+        dlg.margins =
+            20;
+
+
+        dlg.add(
+            "statictext",
+            undefined,
+            "CSV-Daten erfolgreich eingelesen"
+        );
+
+
+        var info =
+            dlg.add("panel");
+
+        info.orientation =
+            "column";
+
+        info.alignChildren = [
+            "left",
+            "top"
+        ];
+
+        info.margins =
+            15;
+
+        info.spacing =
+            6;
+
+
+        info.add(
+            "statictext",
+            undefined,
+            "Datei: " +
+            datei.name
+        );
+
+
+        info.add(
+            "statictext",
+            undefined,
+            "Datensätze: " +
+            csvDaten.anzahl
+        );
+
+
+        info.add(
+            "statictext",
+            undefined,
+            "Spalten: " +
+            csvDaten.spalten.length
+        );
+
+
+        var vorschauBereich =
+            dlg.add("panel");
+
+        vorschauBereich.text =
+            "Vorschau – erste 10 Datensätze";
+
+        vorschauBereich.orientation =
+            "column";
+
+        vorschauBereich.alignChildren = [
+            "fill",
+            "top"
+        ];
+
+        vorschauBereich.margins =
+            15;
+
+
+        var spaltenbreiten = [];
+
+        var i;
+
+
+        for (
+            i = 0;
+            i < csvDaten.spalten.length;
+            i++
+        ) {
+
+            spaltenbreiten.push(120);
+        }
+
+
+        var liste =
+            vorschauBereich.add(
+                "listbox",
+                undefined,
+                [],
+                {
+                    numberOfColumns:
+                        csvDaten.spalten.length,
+
+                    showHeaders:
+                        true,
+
+                    columnTitles:
+                        csvDaten.spalten,
+
+                    columnWidths:
+                        spaltenbreiten
+                }
+            );
+
+
+        liste.preferredSize = [
+            760,
+            260
+        ];
+
+
+        var maximaleVorschau =
+            Math.min(
+                10,
+                csvDaten.datensaetze.length
+            );
+
+
+        var zeile;
+        var eintrag;
+        var spalte;
+        var wert;
+
+
+        for (
+            i = 0;
+            i < maximaleVorschau;
+            i++
+        ) {
+
+            zeile =
+                csvDaten.datensaetze[i];
+
+
+            wert =
+                zeile.length > 0
+                    ? zeile[0]
+                    : "";
+
+
+            eintrag =
+                liste.add(
+                    "item",
+                    wert
+                );
+
+
+            for (
+                spalte = 1;
+                spalte < csvDaten.spalten.length;
+                spalte++
+            ) {
+
+                wert =
+                    spalte < zeile.length
+                        ? zeile[spalte]
+                        : "";
+
+
+                eintrag.subItems[
+                    spalte - 1
+                ].text = wert;
+            }
+        }
+
+
+        var hinweis =
+            dlg.add(
+                "statictext",
+                undefined,
+                maximaleVorschau +
+                " von " +
+                csvDaten.anzahl +
+                " Datensätzen werden angezeigt."
+            );
+
+
+        var buttons =
+            dlg.add("group");
+
+        buttons.alignment =
+            "right";
+
+
+        var zurueck =
+            buttons.add(
+                "button",
+                undefined,
+                "Zurück"
+            );
+
+
+        var weiter =
+            buttons.add(
+                "button",
+                undefined,
+                "Weiter"
+            );
+
+
+        // Die Spaltenzuordnung kommt im nächsten Schritt.
+        weiter.enabled =
+            false;
+
+
+        zurueck.onClick =
+            function () {
+
+                dlg.close(1);
+            };
+
+
+        dlg.center();
+
+
+        var ergebnis =
+            dlg.show();
+
+
+        if (ergebnis == 1) {
+
+            zeigeDatenquelle();
+        }
+    }
+
+
+    // ============================================================
+    // START
+    // ============================================================
 
     zeigeStartseite();
 
