@@ -561,15 +561,15 @@
             var istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
 
             if (firma == "" && vorname == "" && nachname == "") {
-                fehler["Firma"] = "Empf\u00e4nger fehlt";
-                fehler["Vorname"] = "Empf\u00e4nger fehlt";
-                fehler["Nachname"] = "Empf\u00e4nger fehlt";
+                fehler["Firma"] = "fehlt";
+                fehler["Vorname"] = "fehlt";
+                fehler["Nachname"] = "fehlt";
             }
 
             if (postfach == "") {
                 if (strasse == "") {
                     fehler["Stra\u00dfe"] = "fehlt";
-                    fehler["Postfach"] = "oder Stra\u00dfe";
+                    fehler["Postfach"] = "fehlt";
                 } else if (hausnummer == "") {
                     fehler["Hausnummer"] = "fehlt";
                 }
@@ -584,6 +584,48 @@
 
         var fehlerfelder = fehlerhafteBearbeitungsfelder();
 
+        function base64ZuBinary(base64) {
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            var output = "";
+            var i = 0;
+            var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+
+            base64 = String(base64).replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+            while (i < base64.length) {
+                enc1 = chars.indexOf(base64.charAt(i++));
+                enc2 = chars.indexOf(base64.charAt(i++));
+                enc3 = chars.indexOf(base64.charAt(i++));
+                enc4 = chars.indexOf(base64.charAt(i++));
+
+                chr1 = (enc1 << 2) | (enc2 >> 4);
+                chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+                chr3 = ((enc3 & 3) << 6) | enc4;
+
+                output += String.fromCharCode(chr1);
+                if (base64.charAt(i - 2) != "=") output += String.fromCharCode(chr2);
+                if (base64.charAt(i - 1) != "=") output += String.fromCharCode(chr3);
+            }
+
+            return output;
+        }
+
+        function validierungsBildDatei(typ) {
+            var fehltB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAABj0lEQVR4nO3WP0scYRDH8e8FwVZIsFE5hKf4BaJVbIRUKTy0CRI7QRBSSLTLK4hgZfAg6XwFB4FoYbBKLzYJQZhiClET1Ag2ggjxT3Eql4055Nggd84HFnZ5hpln59ndZyGEEEII4d5wqdeldZd+u/TmFvG7Lj35x9imS0/zn2XreJC5ngHWgPZkNp9nIZd2YjH+lG1+EfiazE7vYjL3TdvViUurwBAw6tIi0Af8At4Dz4EjoJzMFjI5Si5VgB7gMzCRzE5qA1z6CHQB6y4BzCSzD//nlprH9ZOfzErAMvAqmRWADeATsAckqgsz5dJIJscwUAJEdcHGs0WS2UvgBzCQzArR+Kq2OmP9wGPg2eVn6NClMjAGrNTEvU1m2wAuLQE3bsDhb/WaXwQ6gBOXCsDV8SUTd1Bzfgw8zHOCraxe87eBn0B3MjvPodZZDjlaSvZvp9Y3YAt451KnS49cmnTpdYO19oG+y7coUKf5yewMeAF0At+pbsCDQKXBWnPALHDq0nSDOUIIIYQQQtO4AIinbOnTR4fGAAAAAElFTkSuQmCC";
+            var ungueltigB64 = "iVBORw0KGgoAAAANSUhEUgAAAF8AAAAWCAYAAACmG0BRAAAB40lEQVR4nO3Xu2sUURTH8U80hVpoY2UULQY8RVJpOkvBB6KiaQRBFEQLtbKwSKVilSKFjRb+BT4LHwiWVmohItziIpEYEySVCL4SsdgJbIKPdXezcXW+1Rzu3N/v8JvLYS4VFRUVFRUdJEeM5YitS91Hp+ntlFGO6MVXDGAUD4qURn7y7hvsL1J6WtZjGJqr/xU6Fn6R0gx6ynL7H+7d1PaG/gLmhZ8jZrC+SGmqrEfxoUhpuKynMIKj2IB7OFKk9DlH9OMaNuMxpvG2SOlcI9p1PVxHH57kCDiNs+pO/u+8uoVlTezZjZ0ItRFyOEcsxy3cVfsoV3ComYaKlIYwgcEipZ4ipcv16+30WmqaGTvni5TGIUfcRj+2YA0uFinN4k6OuN+2LufTSa9FpZmTP133/BErsQ4TZRhzvG6lsV/QSa9FZWH4n7Cirl7boM4k+sqRMMfGFrS/tejVFSwM/wWO5YhVOWIHDjSo8wzvMZwjVueIvdjVgvY7DOSInh+sNeLVFSwM/4xaKJM4iRuNiJS/kQexB+Pl3pv40qT2JVzAbI441YTX/02OeJgjjv9rXu2kbZesHHECL/Fc7WRuU7sPtJ1Oei0m7bzhPsJVDOIV9hUpTbRRf6m8KioqKioqKrqZ7wchwxpvNbfmAAAAAElFTkSuQmCC";
+            var pfad = Folder.temp.fsName + "/mailing_assistant_hint_" + (typ == "ung\u00fcltig" ? "ungueltig" : "fehlt") + ".png";
+            var bild = File(pfad);
+
+            if (!bild.exists) {
+                bild.encoding = "BINARY";
+                if (!bild.open("w")) return null;
+                bild.write(base64ZuBinary(typ == "ung\u00fcltig" ? ungueltigB64 : fehltB64));
+                bild.close();
+            }
+
+            return bild;
+        }
+
         for (i = 0; i < felder.length; i++) {
             var feld = felder[i];
             var index = mappingSpaltenindex(csvDaten, mapping, feld);
@@ -593,22 +635,15 @@
             var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
 
             if (fehlerfelder[feld]) {
-                var hinweis = zeile.add("panel", undefined, "");
-                hinweis.preferredSize = [95, 22];
-                hinweis.margins = 0;
-                hinweis.hinweisText = fehlerfelder[feld];
-                hinweis.onDraw = function () {
-                    var g = this.graphics;
-                    try {
-                        var hintergrund = g.newBrush(ScriptUIGraphics.BrushType.SOLID_COLOR, [0.30, 0.30, 0.30]);
-                        g.rectPath(0, 0, this.size.width, this.size.height);
-                        g.fillPath(hintergrund);
-
-                        var rot = g.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                        var font = ScriptUI.newFont("dialog", "REGULAR", 12);
-                        g.drawString(this.hinweisText, rot, 4, 15, font);
-                    } catch (e) {}
-                };
+                var bildDatei = validierungsBildDatei(fehlerfelder[feld]);
+                var hinweis;
+                if (bildDatei && bildDatei.exists) {
+                    hinweis = zeile.add("image", undefined, bildDatei);
+                    hinweis.preferredSize = [95, 22];
+                } else {
+                    hinweis = zeile.add("statictext", undefined, fehlerfelder[feld]);
+                    hinweis.preferredSize.width = 95;
+                }
             } else {
                 var platzhalter = zeile.add("statictext", undefined, "");
                 platzhalter.preferredSize.width = 95;
