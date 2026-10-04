@@ -2922,16 +2922,29 @@
                 var plzOrtAnalyse = plzOrtAnalysieren(plz, ort, land);
                 var plzOrt = plzOrtAnalyse.zeile;
 
+                var landNorm = trimText(land).toLowerCase();
+                var landzeile = "";
+                if (
+                    landNorm != "" &&
+                    landNorm != "deutschland" &&
+                    landNorm != "de" &&
+                    landNorm != "deu" &&
+                    landNorm != "germany"
+                ) {
+                    landzeile = land;
+                }
+
                 return {
                     person: person,
                     strassenzeile: strassenzeile,
                     postfachzeile: postfachzeile,
-                    plzOrt: plzOrt
+                    plzOrt: plzOrt,
+                    landzeile: landzeile
                 };
             }
 
             var zeilen = [];
-            var header = ["Datensatz", "Quellzeile", "Person", "Strassenzeile", "Postfachzeile", "PLZ_Ort"];
+            var header = ["Datensatz", "Quellzeile", "Person", "Strassenzeile", "Postfachzeile", "PLZ_Ort", "Landzeile"];
             for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
             zeilen.push(header.join("\t"));
 
@@ -2950,7 +2963,8 @@
                     bereinigeExportWert(prod.person),
                     bereinigeExportWert(prod.strassenzeile),
                     bereinigeExportWert(prod.postfachzeile),
-                    bereinigeExportWert(prod.plzOrt)
+                    bereinigeExportWert(prod.plzOrt),
+                    bereinigeExportWert(prod.landzeile)
                 ];
                 for (i = 0; i < exportFelder.length; i++) {
                     var feld = exportFelder[i];
@@ -3023,7 +3037,7 @@
             return {
                 datei: ziel,
                 datensaetze: freigegeben.length,
-                felder: exportFelder.length + 6
+                felder: exportFelder.length + 7
             };
         }
 
