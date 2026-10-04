@@ -1834,22 +1834,26 @@
                 return wert.replace(/[^a-z0-9]/g, "");
             }
 
+            var strassenQuellIndex = -1;
+            var si;
+            for (si = 0; si < csvDaten.spalten.length; si++) {
+                var spaltennameNorm = normalisiereExportSpaltenname(csvDaten.spalten[si]);
+                if (spaltennameNorm == "strasse" || spaltennameNorm == "street" || spaltennameNorm == "streetname") {
+                    strassenQuellIndex = si;
+                    break;
+                }
+            }
+
             function exportWert(datensatz, feld) {
+                // Straße bewusst direkt aus der erkannten Quellspalte lesen.
+                // Damit umgehen wir jede Mapping-/Alias-Abweichung im Export.
+                if (feld == "Straße" && strassenQuellIndex >= 0) {
+                    return strassenQuellIndex < datensatz.length ? trimText(datensatz[strassenQuellIndex]) : "";
+                }
+
                 var index = mappingSpaltenindex(csvDaten, mapping, feld);
                 if (index >= 0 && index < datensatz.length) {
                     return trimText(datensatz[index]);
-                }
-
-                // Fallback nur für Straße: Quellspalte anhand des tatsächlichen
-                // Spaltennamens direkt auflösen, falls das Mapping fehlt.
-                if (feld == "Straße") {
-                    var aliases = {"strasse":true, "street":true, "streetname":true};
-                    var s;
-                    for (s = 0; s < csvDaten.spalten.length; s++) {
-                        if (aliases[normalisiereExportSpaltenname(csvDaten.spalten[s])]) {
-                            return s < datensatz.length ? trimText(datensatz[s]) : "";
-                        }
-                    }
                 }
 
                 return "";
