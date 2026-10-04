@@ -1805,6 +1805,81 @@
             neuLayouten();
         }
 
+        function exportiereInDesignDatenquelle(mapping) {
+            var freigegeben = csvDaten.freigegebeneDatensatznummern || [];
+            if (freigegeben.length == 0) {
+                letzteNachricht = "Es sind keine freigegebenen Datensätze vorhanden.";
+                return null;
+            }
+
+            var felder = ["Anrede","Titel","Vorname","Nachname","Firma","Adresszusatz","Straße","Hausnummer","Postfach","PLZ","Ort","Land","E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"];
+            var exportFelder = [];
+            var i;
+            for (i = 0; i < felder.length; i++) {
+                if (mappingSpaltenindex(csvDaten, mapping, felder[i]) >= 0) exportFelder.push(felder[i]);
+            }
+
+            if (exportFelder.length == 0) {
+                letzteNachricht = "Es sind keine Mailing-Felder für den Export zugeordnet.";
+                return null;
+            }
+
+            function bereinigeExportWert(wert) {
+                wert = wert === null || wert === undefined ? "" : String(wert);
+                wert = wert.replace(/\t/g, " ");
+                wert = wert.replace(/[\r\n]+/g, " ");
+                return wert;
+            }
+
+            function headerName(feld) {
+                if (feld == "Straße") return "Strasse";
+                if (feld == "E-Mail") return "E_Mail";
+                return feld;
+            }
+
+            var zeilen = [];
+            var header = ["Datensatz"];
+            for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
+            zeilen.push(header.join("\t"));
+
+            var r;
+            for (r = 0; r < freigegeben.length; r++) {
+                var nr = freigegeben[r];
+                var ds = csvDaten.datensaetze[nr - 1];
+                var werte = [String(nr)];
+                for (i = 0; i < exportFelder.length; i++) {
+                    werte.push(bereinigeExportWert(wertAusDatensatz(mapping, ds, exportFelder[i])));
+                }
+                zeilen.push(werte.join("\t"));
+            }
+
+            var basis = datei && datei.name ? datei.name.replace(/\.[^.]+$/, "") : "Mailing";
+            var ziel = File.saveDialog(
+                "InDesign-Datenquelle speichern",
+                "Textdatei:*.txt",
+                Folder.myDocuments.fsName + "/" + basis + "_InDesign_Datenquelle.txt"
+            );
+            if (!ziel) return null;
+
+            if (!/\.txt$/i.test(ziel.name)) ziel = File(ziel.fsName + ".txt");
+            ziel.encoding = "UTF-8";
+            ziel.lineFeed = "Windows";
+
+            if (!ziel.open("w")) {
+                letzteNachricht = "Die InDesign-Datenquelle konnte nicht gespeichert werden.";
+                return null;
+            }
+
+            ziel.write("\uFEFF" + zeilen.join("\r\n"));
+            ziel.close();
+
+            return {
+                datei: ziel,
+                datensaetze: freigegeben.length,
+                felder: exportFelder.length + 1
+            };
+        }
+
         function zeigeAusgabeSeite(mapping) {
             leeren();dlg.text="Mailing-Assistant \u2013 Produktionsausgabe";
             seitenContainer.add("statictext",undefined,"Produktionsausgabe ausw\u00e4hlen");
@@ -1822,10 +1897,46 @@
             zurueck.onClick=function(){zeigeMailingSeite(mapping);};
             fertig.onClick=function(){
                 csvDaten.produktionsausgabe=r1.value?"InDesign":(r2.value?"CSV":(r3.value?"XLSX":"Adressliste"));
+
+                if (csvDaten.produktionsausgabe == "InDesign") {
+                    var ergebnis = exportiereInDesignDatenquelle(mapping);
+                    if (!ergebnis) {
+                        if (letzteNachricht != "") {
+                            leeren(); dlg.text="Mailing-Assistant \u2013 Produktionsausgabe";
+                            seitenContainer.add("statictext",undefined,letzteNachricht);
+                            var bx=seitenContainer.add("group"); bx.alignment="right";
+                            var zurueckX=bx.add("button",undefined,"Zur\u00fcck");
+                            zurueckX.onClick=function(){letzteNachricht="";zeigeAusgabeSeite(mapping);};
+                            neuLayouten();
+                        }
+                        return;
+                    }
+
+                    leeren();dlg.text="Mailing-Assistant \u2013 InDesign-Datenquelle";
+                    seitenContainer.add("statictext",undefined,"InDesign-Datenquelle erfolgreich erstellt.");
+                    var info=seitenContainer.add("panel");info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
+                    info.add("statictext",undefined,"Freigegebene Datens\u00e4tze: "+ergebnis.datensaetze);
+                    info.add("statictext",undefined,"Exportierte Spalten: "+ergebnis.felder);
+                    info.add("statictext",undefined,"Datei: "+ergebnis.datei.fsName);
+                    seitenContainer.add("statictext",undefined,"Format: UTF-8, tabulatorgetrennt. Die Datei kann direkt als Datenquelle in InDesign verwendet werden.");
+
+                    var b=seitenContainer.add("group");b.alignment="right";
+                    var zurueck= b.add("button",undefined,"Zur\u00fcck");
+                    var schliessen=b.add("button",undefined,"Schlie\u00dfen");
+                    zurueck.onClick=function(){zeigeAusgabeSeite(mapping);};
+                    schliessen.onClick=function(){dlg.close(0);};
+                    neuLayouten();
+                    return;
+                }
+
                 leeren();dlg.text="Mailing-Assistant \u2013 Produktionsausgabe";
                 seitenContainer.add("statictext",undefined,"Produktionsausgabe gew\u00e4hlt: "+csvDaten.produktionsausgabe);
-                seitenContainer.add("statictext",undefined,"Im n\u00e4chsten Schritt bauen wir genau diese Ausgabe.");
-                var b=seitenContainer.add("group");b.alignment="right";var schliessen=b.add("button",undefined,"Schlie\u00dfen");schliessen.onClick=function(){dlg.close(0);};
+                seitenContainer.add("statictext",undefined,"Dieser Ausgabeweg wird als N\u00e4chstes umgesetzt.");
+                var b=seitenContainer.add("group");b.alignment="right";
+                var zurueckAndere=b.add("button",undefined,"Zur\u00fcck");
+                var schliessen=b.add("button",undefined,"Schlie\u00dfen");
+                zurueckAndere.onClick=function(){zeigeAusgabeSeite(mapping);};
+                schliessen.onClick=function(){dlg.close(0);};
                 neuLayouten();
             };
             neuLayouten();
