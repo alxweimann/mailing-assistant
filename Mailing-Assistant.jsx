@@ -2130,7 +2130,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
             var land = wertAusDatensatz(datensatz, "Land");
             if (firma != "") zeilen.push(firma); if (person != "") zeilen.push(person); if (adresszusatz != "") zeilen.push(adresszusatz); if (postfach != "") zeilen.push("Postfach " + postfach); else if (strasse != "") zeilen.push(strasse); if (ort != "") zeilen.push(ort);
             var landKlein = land.toLowerCase(); if (land != "" && landKlein != "deutschland" && landKlein != "de" && landKlein != "germany" && landKlein != "deu") zeilen.push(land);
-            return zeilen.join("\r");
+            return zeilen.join("\n");
         }
         var maximaleVorschau = Math.min(10, csvDaten.datensaetze.length);
         var bereich = dlg.add("panel"); bereich.text = "Erste 10 postalische Anschriften"; bereich.orientation = "row"; bereich.alignChildren = ["fill", "fill"]; bereich.margins = 15; bereich.spacing = 12;
