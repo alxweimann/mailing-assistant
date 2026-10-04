@@ -2040,52 +2040,81 @@
                 "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
             ];
 
-            seitenContainer.add("statictext",undefined,"Dublette zusammenf\u00fchren");
-            seitenContainer.add("statictext",undefined,"Erzeuge aus beiden Datens\u00e4tzen einen bereinigten Zieldatensatz. Die Originaldatei bleibt unver\u00e4ndert.");
-            seitenContainer.add("statictext",undefined,"Links: Datensatz "+originalNr+"    |    Rechts: Datensatz "+dubletteNr);
+            function norm(wert){
+                return trimText(wert).toLowerCase().replace(/\s+/g," ");
+            }
 
-            var kopf=seitenContainer.add("group");kopf.orientation="row";
-            var k1=kopf.add("statictext",undefined,"Feld");k1.preferredSize.width=120;
-            var k2=kopf.add("statictext",undefined,"Links");k2.preferredSize.width=185;
-            var k3=kopf.add("statictext",undefined,"Rechts");k3.preferredSize.width=185;
-            var k4=kopf.add("statictext",undefined,"Zielwert");k4.preferredSize.width=220;
-
-            var panel=seitenContainer.add("panel");
-            panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=10;panel.spacing=4;
-
-            var eingaben=[];
+            var unterschiede=[];
+            var identisch=0;
             var i;
             for(i=0;i<felder.length;i++){
                 var feld=felder[i];
                 var lv=wertAusDatensatz(mapping,linksDs,feld);
                 var rv=wertAusDatensatz(mapping,rechtsDs,feld);
-
-                // Felder, die auf beiden Seiten nicht zugeordnet/leer sind, ausblenden.
                 if(lv==""&&rv=="")continue;
-
-                var row=panel.add("group");row.orientation="row";row.alignChildren=["left","center"];
-                var lab=row.add("statictext",undefined,feld);lab.preferredSize.width=120;
-
-                var ltxt=row.add("edittext",undefined,lv,{readonly:true});ltxt.preferredSize.width=185;
-                var rtxt=row.add("edittext",undefined,rv,{readonly:true});rtxt.preferredSize.width=185;
-
-                var ziel=row.add("edittext",undefined,lv!=""?lv:rv);ziel.preferredSize.width=220;
-
-                var bl=row.add("button",undefined,"L");bl.preferredSize=[28,24];
-                var br=row.add("button",undefined,"R");br.preferredSize=[28,24];
-
-                bl.zielFeld=ziel;bl.quellWert=lv;
-                br.zielFeld=ziel;br.quellWert=rv;
-                bl.onClick=function(){this.zielFeld.text=this.quellWert;};
-                br.onClick=function(){this.zielFeld.text=this.quellWert;};
-
-                eingaben.push({feld:feld,edit:ziel});
+                if(norm(lv)==norm(rv))identisch++;
+                else unterschiede.push({feld:feld,links:lv,rechts:rv});
             }
 
-            var hinweis=seitenContainer.add("statictext",undefined,"L/R \u00fcbernimmt den jeweiligen Quellwert. Der Zielwert kann jederzeit direkt bearbeitet werden.");
-            hinweis.characters=100;
+            seitenContainer.add("statictext",undefined,"Dublette zusammenf\u00fchren");
+            seitenContainer.add("statictext",undefined,"W\u00e4hle nur bei den abweichenden Feldern den richtigen Wert. Identische Felder werden automatisch \u00fcbernommen.");
 
-            var buttons=seitenContainer.add("group");buttons.alignment="right";
+            var info=seitenContainer.add("panel");
+            info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=5;
+            info.add("statictext",undefined,"Datensatz "+originalNr+"  +  Datensatz "+dubletteNr);
+            info.add("statictext",undefined,"Abweichende Felder: "+unterschiede.length);
+            info.add("statictext",undefined,"Identische Felder automatisch \u00fcbernommen: "+identisch);
+
+            var eingaben=[];
+
+            for(i=0;i<unterschiede.length;i++){
+                var u=unterschiede[i];
+
+                var feldPanel=seitenContainer.add("panel");
+                feldPanel.text=u.feld;
+                feldPanel.orientation="column";
+                feldPanel.alignChildren=["fill","top"];
+                feldPanel.margins=12;
+                feldPanel.spacing=7;
+
+                var quellwahl=feldPanel.add("group");
+                quellwahl.orientation="row";
+                quellwahl.alignChildren=["left","center"];
+                quellwahl.spacing=16;
+
+                var linksRadio=quellwahl.add("radiobutton",undefined,"Datensatz "+originalNr+": "+(u.links!=""?u.links:"[leer]"));
+                linksRadio.preferredSize.width=330;
+                var rechtsRadio=quellwahl.add("radiobutton",undefined,"Datensatz "+dubletteNr+": "+(u.rechts!=""?u.rechts:"[leer]"));
+                rechtsRadio.preferredSize.width=330;
+
+                var eigen=feldPanel.add("group");
+                eigen.orientation="row";
+                eigen.alignChildren=["left","center"];
+                var eigenRadio=eigen.add("radiobutton",undefined,"Eigener Wert:");
+                eigenRadio.preferredSize.width=105;
+                var eigenEdit=eigen.add("edittext",undefined,"");
+                eigenEdit.preferredSize.width=555;
+
+                linksRadio.value=true;
+
+                eigenEdit.onChanging=function(){
+                    if(this.text!="")this.eigenRadio.value=true;
+                };
+                eigenEdit.eigenRadio=eigenRadio;
+
+                eingaben.push({
+                    feld:u.feld,
+                    links:u.links,
+                    rechts:u.rechts,
+                    linksRadio:linksRadio,
+                    rechtsRadio:rechtsRadio,
+                    eigenRadio:eigenRadio,
+                    eigenEdit:eigenEdit
+                });
+            }
+
+            var buttons=seitenContainer.add("group");
+            buttons.alignment="right";
             var abbrechen=buttons.add("button",undefined,"Abbrechen");
             var speichern=buttons.add("button",undefined,"Zusammenf\u00fchren");
 
@@ -2094,7 +2123,11 @@
             speichern.onClick=function(){
                 var j;
                 for(j=0;j<eingaben.length;j++){
-                    mappingWertSetzenLokal(mapping,linksDs,eingaben[j].feld,eingaben[j].edit.text);
+                    var e=eingaben[j];
+                    var zielwert=e.links;
+                    if(e.rechtsRadio.value)zielwert=e.rechts;
+                    else if(e.eigenRadio.value)zielwert=e.eigenEdit.text;
+                    mappingWertSetzenLokal(mapping,linksDs,e.feld,zielwert);
                 }
 
                 if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
@@ -2104,7 +2137,7 @@
                 if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
                 csvDaten.dublettenstatus[String(originalNr)+"-"+String(dubletteNr)]="zusammengefuehrt";
 
-                letzteNachricht="Datensatz "+originalNr+" wurde aus beiden Varianten zusammengef\u00fchrt. Datensatz "+dubletteNr+" wurde ausgeschlossen.";
+                letzteNachricht="Datensatz "+originalNr+" wurde zusammengef\u00fchrt; Datensatz "+dubletteNr+" wurde ausgeschlossen.";
                 zeigeDublettenPruefungSeite(mapping);
             };
 
@@ -2116,6 +2149,9 @@
             dlg.text="Mailing-Assistant \u2013 Dublettenpr\u00fcfung";
 
             if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
+            if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
+            if(!csvDaten.autoDublettenEntfernt)csvDaten.autoDublettenEntfernt={};
+
             var status=csvDaten.freigabestatus;
             var ausgeschlossen={};
             var i;
@@ -2127,7 +2163,6 @@
                 var a=csvDaten.datensaetze[nr1-1];
                 var b=csvDaten.datensaetze[nr2-1];
                 if(!a||!b)return false;
-
                 var max=a.length>b.length?a.length:b.length;
                 var j;
                 for(j=0;j<max;j++){
@@ -2140,63 +2175,90 @@
 
             var alle=eindeutigeDublettenPruefen(csvDaten,mapping);
             var dubletten=[];
-            var automatischEntfernt=0;
 
             for(i=0;i<alle.length;i++) {
-                if(ausgeschlossen[alle[i].datensatz]||ausgeschlossen[alle[i].original]) continue;
+                var autoKey=String(alle[i].original)+"-"+String(alle[i].datensatz);
 
                 if(datensaetzeExaktGleich(alle[i].original,alle[i].datensatz)){
-                    status[alle[i].datensatz]="Ausschlie\u00dfen";
+                    if(!csvDaten.autoDublettenEntfernt[autoKey]){
+                        csvDaten.autoDublettenEntfernt[autoKey]=true;
+                        status[alle[i].datensatz]="Ausschlie\u00dfen";
+                    }
                     ausgeschlossen[alle[i].datensatz]=true;
-                    automatischEntfernt++;
                     continue;
                 }
 
+                if(ausgeschlossen[alle[i].datensatz]||ausgeschlossen[alle[i].original])continue;
                 dubletten.push(alle[i]);
             }
 
-            function datensatzVergleichstext(nr, andererNr) {
-                var ds=csvDaten.datensaetze[nr-1];
-                var anderer=csvDaten.datensaetze[andererNr-1];
+            var automatischEntfernt=0;
+            var ak;
+            for(ak in csvDaten.autoDublettenEntfernt){
+                if(csvDaten.autoDublettenEntfernt.hasOwnProperty(ak)&&csvDaten.autoDublettenEntfernt[ak])automatischEntfernt++;
+            }
 
+            function norm(wert){
+                return trimText(wert).toLowerCase().replace(/\s+/g," ");
+            }
+
+            function differenzen(nr1,nr2){
+                var ds1=csvDaten.datensaetze[nr1-1];
+                var ds2=csvDaten.datensaetze[nr2-1];
                 var felder=[
                     "Firma","Anrede","Titel","Vorname","Nachname","Adresszusatz",
                     "Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land",
                     "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
                 ];
-
-                function anzeigeVergleich(wert) {
-                    return trimText(wert).toLowerCase().replace(/\s+/g," ");
-                }
-
-                var zeilen=[];
-                var j;
+                var diff=[],gleich=0,j;
                 for(j=0;j<felder.length;j++){
                     var feld=felder[j];
-                    var wert=wertAusDatensatz(mapping,ds,feld);
-                    var andererWert=wertAusDatensatz(mapping,anderer,feld);
-
-                    if(wert==""&&andererWert=="")continue;
-
-                    var abweichend=anzeigeVergleich(wert)!=anzeigeVergleich(andererWert);
-                    zeilen.push((abweichend?"\u2260 ":"  ")+feld+": "+(wert!=""?wert:"[leer]"));
+                    var l=wertAusDatensatz(mapping,ds1,feld);
+                    var r=wertAusDatensatz(mapping,ds2,feld);
+                    if(l==""&&r=="")continue;
+                    if(norm(l)==norm(r))gleich++;
+                    else diff.push({feld:feld,links:l,rechts:r});
                 }
+                return {diff:diff,gleich:gleich};
+            }
 
-                return zeilen.join("\r\n");
+            function adressKurz(nr){
+                var ds=csvDaten.datensaetze[nr-1];
+                var firma=wertAusDatensatz(mapping,ds,"Firma");
+                var person=verbindeTeile([
+                    wertAusDatensatz(mapping,ds,"Anrede"),
+                    wertAusDatensatz(mapping,ds,"Titel"),
+                    wertAusDatensatz(mapping,ds,"Vorname"),
+                    wertAusDatensatz(mapping,ds,"Nachname")
+                ]);
+                var name=firma!=""?(person!=""?firma+" / "+person:firma):person;
+                var postfach=wertAusDatensatz(mapping,ds,"Postfach");
+                var strasse=strassenHausnummerAnalysieren(
+                    wertAusDatensatz(mapping,ds,"Stra\u00dfe"),
+                    wertAusDatensatz(mapping,ds,"Hausnummer")
+                ).zeile;
+                var plzOrt=plzOrtAnalysieren(
+                    wertAusDatensatz(mapping,ds,"PLZ"),
+                    wertAusDatensatz(mapping,ds,"Ort"),
+                    wertAusDatensatz(mapping,ds,"Land")
+                ).zeile;
+                return {
+                    name:name!=""?name:"[ohne Empf\u00e4nger]",
+                    adresse:verbindeTeile([postfach!=""?postfachZeileNormalisieren(postfach):strasse,plzOrt])
+                };
             }
 
             seitenContainer.add("statictext",undefined,"Dublettenpr\u00fcfung");
-            seitenContainer.add("statictext",undefined,"Letzte Pr\u00fcfinstanz nach Bereinigung und manueller Korrektur.");
-            seitenContainer.add("statictext",undefined,"Vergleiche die Dubletten paarweise und entscheide, welche Daten erhalten bleiben sollen.");
+            seitenContainer.add("statictext",undefined,"Nur abweichende Werte werden angezeigt. Vollst\u00e4ndig identische Dubletten entfernt der Mailing-Assistant automatisch.");
 
             var info=seitenContainer.add("panel");
-            info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
-            info.add("statictext",undefined,"Manuell zu pr\u00fcfende Dublettenpaare: "+dubletten.length);
-            info.add("statictext",undefined,"Automatisch entfernte identische Dubletten: "+automatischEntfernt);
+            info.orientation="row";info.alignChildren=["left","center"];info.margins=15;info.spacing=24;
+            info.add("statictext",undefined,"Manuell zu pr\u00fcfen: "+dubletten.length);
+            info.add("statictext",undefined,"Identische automatisch entfernt: "+automatischEntfernt);
 
             if(dubletten.length==0) {
                 delete csvDaten.dublettenSeitenIndex;
-                seitenContainer.add("statictext",undefined,automatischEntfernt>0?"Alle verbleibenden Dubletten waren vollst\u00e4ndig identisch und wurden automatisch bereinigt.":"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
+                seitenContainer.add("statictext",undefined,automatischEntfernt>0?"Alle Dubletten sind bereinigt.":"Keine Dubletten gefunden.");
                 var buttonsLeer=seitenContainer.add("group");buttonsLeer.alignment="right";
                 var zurueckLeer=buttonsLeer.add("button",undefined,"Zur\u00fcck");
                 var weiterLeer=buttonsLeer.add("button",undefined,"Weiter zur Mailing-Verarbeitung");
@@ -2205,7 +2267,7 @@
                     var frei=[],aus=[],j;
                     for(j=1;j<=csvDaten.anzahl;j++){
                         var w=(csvDaten.freigabestatus||{})[j]||"\u00dcbernehmen";
-                        if(w=="Ausschlie\u00dfen")aus.push(j);else if(w=="\u00dcbernehmen")frei.push(j);
+                        if(w=="Ausschlie\u00dfen")aus.push(j);else frei.push(j);
                     }
                     csvDaten.freigegebeneDatensatznummern=frei;
                     csvDaten.ausgeschlosseneDatensatznummern=aus;
@@ -2215,7 +2277,6 @@
                 return;
             }
 
-            if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
             var index=csvDaten.dublettenSeitenIndex||0;
             if(index<0)index=0;
             if(index>=dubletten.length)index=dubletten.length-1;
@@ -2223,110 +2284,109 @@
 
             var d=dubletten[index];
             var schluessel=String(d.original)+"-"+String(d.datensatz);
-
-            info.add("statictext",undefined,"Aktuelles Paar: "+(index+1)+" von "+dubletten.length);
+            var vergleich=differenzen(d.original,d.datensatz);
+            var linksKurz=adressKurz(d.original);
+            var rechtsKurz=adressKurz(d.datensatz);
 
             var paar=seitenContainer.add("panel");
-            paar.text="Dublettenpaar "+(index+1)+" von "+dubletten.length;
-            paar.orientation="column";
-            paar.alignChildren=["fill","top"];
-            paar.margins=12;
-            paar.spacing=8;
+            paar.text="Paar "+(index+1)+" von "+dubletten.length;
+            paar.orientation="column";paar.alignChildren=["fill","top"];paar.margins=14;paar.spacing=10;
 
-            var vergleich=paar.add("group");
-            vergleich.orientation="row";
-            vergleich.alignChildren=["fill","top"];
-            vergleich.spacing=12;
+            var kopf= paar.add("group");
+            kopf.orientation="row";kopf.alignChildren=["fill","top"];kopf.spacing=20;
 
-            var links=vergleich.add("panel");
-            links.text="Datensatz "+d.original;
-            links.orientation="column";
-            links.alignChildren=["fill","top"];
-            links.margins=10;
-            var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original,d.datensatz),{multiline:true,readonly:true});
-            linksText.preferredSize=[360,245];
+            var linksInfo=kopf.add("panel");
+            linksInfo.text="Datensatz "+d.original;
+            linksInfo.orientation="column";linksInfo.alignChildren=["left","top"];linksInfo.margins=10;
+            var li1=linksInfo.add("statictext",undefined,linksKurz.name);li1.preferredSize.width=330;
+            var li2=linksInfo.add("statictext",undefined,linksKurz.adresse);li2.preferredSize.width=330;
 
-            var rechts=vergleich.add("panel");
-            rechts.text="Datensatz "+d.datensatz;
-            rechts.orientation="column";
-            rechts.alignChildren=["fill","top"];
-            rechts.margins=10;
-            var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz,d.original),{multiline:true,readonly:true});
-            rechtsText.preferredSize=[360,245];
+            var rechtsInfo=kopf.add("panel");
+            rechtsInfo.text="Datensatz "+d.datensatz;
+            rechtsInfo.orientation="column";rechtsInfo.alignChildren=["left","top"];rechtsInfo.margins=10;
+            var ri1=rechtsInfo.add("statictext",undefined,rechtsKurz.name);ri1.preferredSize.width=330;
+            var ri2=rechtsInfo.add("statictext",undefined,rechtsKurz.adresse);ri2.preferredSize.width=330;
 
-            var entscheidung=paar.add("group");
-            entscheidung.orientation="row";
-            entscheidung.alignChildren=["left","center"];
-            entscheidung.add("statictext",undefined,"Entscheidung:");
+            var diffPanel=paar.add("panel");
+            diffPanel.text="Abweichungen";
+            diffPanel.orientation="column";diffPanel.alignChildren=["fill","top"];diffPanel.margins=10;diffPanel.spacing=4;
 
-            var optionen=[
-                "Pr\u00fcfen",
-                "Datensatz "+d.original+" behalten",
-                "Datensatz "+d.datensatz+" behalten",
-                "Beide behalten"
-            ];
-            var dd=entscheidung.add("dropdownlist",undefined,optionen);
-            dd.preferredSize.width=245;
+            var dh=diffPanel.add("group");dh.orientation="row";
+            var dh1=dh.add("statictext",undefined,"Feld");dh1.preferredSize.width=130;
+            var dh2=dh.add("statictext",undefined,"Datensatz "+d.original);dh2.preferredSize.width=270;
+            var dh3=dh.add("statictext",undefined,"Datensatz "+d.datensatz);dh3.preferredSize.width=270;
 
-            var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren / bearbeiten");
-            zusammenfuehren.preferredSize.width=180;
+            for(i=0;i<vergleich.diff.length;i++){
+                var dr=diffPanel.add("group");dr.orientation="row";
+                var f1=dr.add("statictext",undefined,vergleich.diff[i].feld);f1.preferredSize.width=130;
+                var f2=dr.add("statictext",undefined,vergleich.diff[i].links!=""?vergleich.diff[i].links:"[leer]");f2.preferredSize.width=270;
+                var f3=dr.add("statictext",undefined,vergleich.diff[i].rechts!=""?vergleich.diff[i].rechts:"[leer]");f3.preferredSize.width=270;
+            }
+
+            diffPanel.add("statictext",undefined,vergleich.gleich+" identische Felder werden nicht angezeigt.");
+
+            var entscheidung=paar.add("panel");
+            entscheidung.text="Entscheidung";
+            entscheidung.orientation="row";entscheidung.alignChildren=["left","center"];entscheidung.margins=10;entscheidung.spacing=14;
+
+            var linksBehalten=entscheidung.add("radiobutton",undefined,"Datensatz "+d.original+" behalten");
+            var rechtsBehalten=entscheidung.add("radiobutton",undefined,"Datensatz "+d.datensatz+" behalten");
+            var beideBehalten=entscheidung.add("radiobutton",undefined,"Beide behalten");
+            var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren");
 
             var alt=csvDaten.dublettenstatus[schluessel]||"pruefen";
-            if(alt=="links")dd.selection=1;
-            else if(alt=="rechts")dd.selection=2;
-            else if(alt=="beide")dd.selection=3;
-            else dd.selection=0;
+            if(alt=="links")linksBehalten.value=true;
+            else if(alt=="rechts")rechtsBehalten.value=true;
+            else if(alt=="beide")beideBehalten.value=true;
 
-            function statusAusDropdown() {
-                var idx=dd.selection?dd.selection.index:0;
-                if(idx==1)return "links";
-                if(idx==2)return "rechts";
-                if(idx==3)return "beide";
+            function aktuelleEntscheidung(){
+                if(linksBehalten.value)return "links";
+                if(rechtsBehalten.value)return "rechts";
+                if(beideBehalten.value)return "beide";
                 return "pruefen";
             }
 
-            function aktuelleEntscheidungSpeichern() {
-                csvDaten.dublettenstatus[schluessel]=statusAusDropdown();
+            function speichern(){
+                csvDaten.dublettenstatus[schluessel]=aktuelleEntscheidung();
             }
 
             zusammenfuehren.onClick=function(){
-                aktuelleEntscheidungSpeichern();
+                speichern();
                 zeigeDublettenZusammenfuehrenSeite(mapping,d.original,d.datensatz);
             };
 
-            var markerHinweis=seitenContainer.add("statictext",undefined,"\u2260 kennzeichnet Felder, deren Originalwerte voneinander abweichen.");
-            markerHinweis.characters=100;
-
             var navigation=seitenContainer.add("group");
-            navigation.orientation="row";
-            navigation.alignment="fill";
+            navigation.orientation="row";navigation.alignment="fill";
 
-            var navLinks=navigation.add("group");
-            navLinks.alignment="left";
+            var navLinks=navigation.add("group");navLinks.alignment="left";
             var zurFreigabe=navLinks.add("button",undefined,"Zur\u00fcck zur Freigabe");
             var vorheriges=navLinks.add("button",undefined,"Vorheriges Paar");
             vorheriges.enabled=index>0;
 
-            var navRechts=navigation.add("group");
-            navRechts.alignment="right";
-            var naechstes;
-            if(index<dubletten.length-1) naechstes=navRechts.add("button",undefined,"N\u00e4chstes Paar");
-            else naechstes=navRechts.add("button",undefined,"Dublettenpr\u00fcfung abschlie\u00dfen");
+            var navRechts=navigation.add("group");navRechts.alignment="right";
+            var naechstes=navRechts.add("button",undefined,index<dubletten.length-1?"N\u00e4chstes Paar":"Dublettenpr\u00fcfung abschlie\u00dfen");
 
             zurFreigabe.onClick=function(){
-                aktuelleEntscheidungSpeichern();
+                speichern();
                 delete csvDaten.dublettenSeitenIndex;
                 zeigeFinaleFreigabeSeite(mapping);
             };
 
             vorheriges.onClick=function(){
-                aktuelleEntscheidungSpeichern();
+                speichern();
                 csvDaten.dublettenSeitenIndex=index-1;
                 zeigeDublettenPruefungSeite(mapping);
             };
 
             naechstes.onClick=function(){
-                aktuelleEntscheidungSpeichern();
+                var ent=aktuelleEntscheidung();
+                if(ent=="pruefen"){
+                    letzteNachricht="Bitte f\u00fcr dieses Dublettenpaar eine Entscheidung treffen oder die Datens\u00e4tze zusammenf\u00fchren.";
+                    zeigeDublettenPruefungSeite(mapping);
+                    return;
+                }
+
+                speichern();
 
                 if(index<dubletten.length-1){
                     csvDaten.dublettenSeitenIndex=index+1;
@@ -2334,13 +2394,12 @@
                     return;
                 }
 
-                var offen=[];
-                var j;
+                var offen=[],j;
                 for(j=0;j<dubletten.length;j++){
                     var dj=dubletten[j];
                     var key=String(dj.original)+"-"+String(dj.datensatz);
-                    var ent=csvDaten.dublettenstatus[key]||"pruefen";
-                    if(ent=="pruefen")offen.push(j);
+                    var e0=csvDaten.dublettenstatus[key]||"pruefen";
+                    if(e0=="pruefen")offen.push(j);
                 }
 
                 if(offen.length>0){
@@ -2349,8 +2408,6 @@
                     zeigeDublettenPruefungSeite(mapping);
                     return;
                 }
-
-                if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
 
                 for(j=0;j<dubletten.length;j++){
                     var a=dubletten[j];
@@ -2372,8 +2429,7 @@
                 var frei=[],aus=[],n;
                 for(n=1;n<=csvDaten.anzahl;n++){
                     var w=csvDaten.freigabestatus[n]||"\u00dcbernehmen";
-                    if(w=="Ausschlie\u00dfen")aus.push(n);
-                    else if(w=="\u00dcbernehmen")frei.push(n);
+                    if(w=="Ausschlie\u00dfen")aus.push(n);else frei.push(n);
                 }
                 csvDaten.freigegebeneDatensatznummern=frei;
                 csvDaten.ausgeschlosseneDatensatznummern=aus;
