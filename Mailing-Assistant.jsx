@@ -118,6 +118,53 @@
         return trimText(datensatz[index]);
     }
 
+    function strassenHausnummerAnalysieren(strasse, hausnummer) {
+        strasse = trimText(strasse);
+        hausnummer = trimText(hausnummer);
+
+        var ergebnis = {
+            zeile: "",
+            erkannteHausnummer: "",
+            hausnummerVorhanden: false,
+            konflikt: false,
+            hinweis: ""
+        };
+
+        if (strasse == "") {
+            ergebnis.zeile = hausnummer;
+            ergebnis.hausnummerVorhanden = hausnummer != "";
+            return ergebnis;
+        }
+
+        // Typische Hausnummern am Ende einer bereits kompletten Straßenzeile:
+        // 12, 12a, 12 a, 10-12, 10–12, 12/1
+        var treffer = strasse.match(/(?:^|\s)(\d+\s*[A-Za-z]?(?:\s*(?:-|\u2013|\/)\s*\d+\s*[A-Za-z]?)?)$/);
+        if (treffer) ergebnis.erkannteHausnummer = trimText(treffer[1]);
+
+        function vergleichswert(wert) {
+            return trimText(wert).toLowerCase()
+                .replace(/\s+/g, "")
+                .replace(/\u2013/g, "-");
+        }
+
+        if (ergebnis.erkannteHausnummer != "") {
+            ergebnis.hausnummerVorhanden = true;
+            ergebnis.zeile = strasse;
+
+            if (hausnummer != "" &&
+                vergleichswert(ergebnis.erkannteHausnummer) != vergleichswert(hausnummer)) {
+                ergebnis.konflikt = true;
+                ergebnis.hinweis = "Hausnummer widersprüchlich: Straße enthält " +
+                    ergebnis.erkannteHausnummer + ", separates Feld enthält " + hausnummer + ".";
+            }
+            return ergebnis;
+        }
+
+        ergebnis.hausnummerVorhanden = hausnummer != "";
+        ergebnis.zeile = verbindeTeile([strasse, hausnummer]);
+        return ergebnis;
+    }
+
     function postalischePflichtfelderPruefen(csvDaten, mapping) {
         var fundstellen = [];
         var i;
@@ -132,11 +179,13 @@
             var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
             var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
             var hinweise = [];
+            var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
 
             if (firma == "" && vorname == "" && nachname == "") hinweise.push("Empf\u00e4ngername/Firma fehlt.");
             if (postfach == "") {
                 if (strasse == "") hinweise.push("Stra\u00dfe oder Postfach fehlt.");
-                else if (hausnummer == "") hinweise.push("Hausnummer fehlt.");
+                else if (!strassenAnalyse.hausnummerVorhanden) hinweise.push("Hausnummer fehlt.");
+                if (strassenAnalyse.konflikt) hinweise.push(strassenAnalyse.hinweis);
             }
             if (plz == "") hinweise.push("PLZ fehlt.");
             if (ort == "") hinweise.push("Ort fehlt.");
@@ -145,7 +194,7 @@
                 fundstellen.push({
                     datensatz: i + 1,
                     empfaenger: verbindeTeile([firma, vorname, nachname]),
-                    anschrift: postfach != "" ? "Postfach " + postfach : verbindeTeile([strasse, hausnummer]),
+                    anschrift: postfach != "" ? "Postfach " + postfach : strassenAnalyse.zeile,
                     ort: verbindeTeile([plz, ort]),
                     hinweis: hinweise.join(" ")
                 });
@@ -1536,7 +1585,11 @@
                 var firma=wertAusDatensatz(mapping,datensatz,"Firma");
                 var person=verbindeTeile([wertAusDatensatz(mapping,datensatz,"Anrede"),wertAusDatensatz(mapping,datensatz,"Titel"),wertAusDatensatz(mapping,datensatz,"Vorname"),wertAusDatensatz(mapping,datensatz,"Nachname")]);
                 var zusatz=wertAusDatensatz(mapping,datensatz,"Adresszusatz");
-                var strasse=verbindeTeile([wertAusDatensatz(mapping,datensatz,"Stra\u00dfe"),wertAusDatensatz(mapping,datensatz,"Hausnummer")]);
+                var strassenAnalyse=strassenHausnummerAnalysieren(
+                    wertAusDatensatz(mapping,datensatz,"Stra\u00dfe"),
+                    wertAusDatensatz(mapping,datensatz,"Hausnummer")
+                );
+                var strasse=strassenAnalyse.zeile;
                 var postfach=wertAusDatensatz(mapping,datensatz,"Postfach");
                 var ort=verbindeTeile([wertAusDatensatz(mapping,datensatz,"PLZ"),wertAusDatensatz(mapping,datensatz,"Ort")]);
                 var land=wertAusDatensatz(mapping,datensatz,"Land");
@@ -1696,7 +1749,12 @@
                 var plz=wertAusDatensatz(mapping,datensatz,"PLZ"),ort=wertAusDatensatz(mapping,datensatz,"Ort"),land=wertAusDatensatz(mapping,datensatz,"Land"),lk=land.toLowerCase();
                 var de=land==""||lk=="deutschland"||lk=="de"||lk=="deu"||lk=="germany";
                 if(firma==""&&vor==""&&nach==""){fehler["Firma"]="fehlt";fehler["Vorname"]="fehlt";fehler["Nachname"]="fehlt";}
-                if(pf==""){if(str==""){fehler["Stra\u00dfe"]="fehlt";fehler["Postfach"]="fehlt";}else if(hn=="")fehler["Hausnummer"]="fehlt";}
+                if(pf==""){
+                    var strassenAnalyse=strassenHausnummerAnalysieren(str,hn);
+                    if(str==""){fehler["Stra\u00dfe"]="fehlt";fehler["Postfach"]="fehlt";}
+                    else if(!strassenAnalyse.hausnummerVorhanden)fehler["Hausnummer"]="fehlt";
+                    if(strassenAnalyse.konflikt){fehler["Stra\u00dfe"]="pr\u00fcfen";fehler["Hausnummer"]="pr\u00fcfen";}
+                }
                 if(plz=="")fehler["PLZ"]="fehlt";else if(de&&!/^\d{5}$/.test(plz))fehler["PLZ"]="ung\u00fcltig";
                 if(ort=="")fehler["Ort"]="fehlt";
                 return fehler;
@@ -1791,7 +1849,11 @@
                 var person=verbindeTeile([wertAusDatensatz(mapping,ds,"Anrede"),wertAusDatensatz(mapping,ds,"Titel"),wertAusDatensatz(mapping,ds,"Vorname"),wertAusDatensatz(mapping,ds,"Nachname")]);
                 var emp=firma!=""?(person!=""?firma+" / "+person:firma):person;if(emp=="")emp="[ohne Empf\u00e4nger]";
                 var pf=wertAusDatensatz(mapping,ds,"Postfach");
-                var ansch=pf!=""?"Postfach "+pf:verbindeTeile([wertAusDatensatz(mapping,ds,"Stra\u00dfe"),wertAusDatensatz(mapping,ds,"Hausnummer")]);
+                var strassenAnalyse=strassenHausnummerAnalysieren(
+                    wertAusDatensatz(mapping,ds,"Stra\u00dfe"),
+                    wertAusDatensatz(mapping,ds,"Hausnummer")
+                );
+                var ansch=pf!=""?"Postfach "+pf:strassenAnalyse.zeile;
                 var po=verbindeTeile([wertAusDatensatz(mapping,ds,"PLZ"),wertAusDatensatz(mapping,ds,"Ort")]);
                 var land=wertAusDatensatz(mapping,ds,"Land");if(land=="")land="Deutschland";
                 var en=liste.add("item",String(nr));en.subItems[0].text=emp;en.subItems[1].text=ansch;en.subItems[2].text=po;en.subItems[3].text=land;
@@ -1871,7 +1933,8 @@
                 var ort = exportWert(datensatz, "Ort");
 
                 var person = verbindeTeile([anrede, titel, vorname, nachname]);
-                var strassenzeile = postfach != "" ? "" : verbindeTeile([strasse, hausnummer]);
+                var strassenAnalyse = strassenHausnummerAnalysieren(strasse, hausnummer);
+                var strassenzeile = postfach != "" ? "" : strassenAnalyse.zeile;
                 var postfachzeile = postfach != "" ? "Postfach " + postfach : "";
                 var plzOrt = verbindeTeile([plz, ort]);
 
