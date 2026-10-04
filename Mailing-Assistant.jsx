@@ -167,7 +167,11 @@
         if(!m.length)throw new Error("Das Excel-Tabellenblatt enthält keine Daten.");var first=-1;for(i=0;i<m.length;i++){for(j=0;j<m[i].length;j++){if(trimText(m[i][j])!=""){first=i;break;}}if(first>=0)break;}if(first<0)throw new Error("Das Excel-Tabellenblatt enthält keine befüllten Zellen.");if(first>0)m=m.slice(first);return{rohzeilen:m};
     }
 
-    function xlsxZeileIstWahrscheinlichUeberschrift(zeile){var bekannte=["anrede","titel","vorname","nachname","firma","straße","strasse","hausnummer","plz","ort","land","adresszusatz","e-mail","email","telefon","kundennummer","selektionsmerkmal","sonstiges"],treffer=0,i,w;for(i=0;i<zeile.length;i++){w=trimText(zeile[i]).toLowerCase();if(bekannte.indexOf(w)>=0)treffer++;}return treffer>=1;}
+    function xlsxZeileIstWahrscheinlichUeberschrift(zeile){
+        var bekannte=["anrede","titel","vorname","nachname","firma","straße","strasse","hausnummer","plz","ort","land","adresszusatz","e-mail","email","telefon","kundennummer","selektionsmerkmal","sonstiges"],treffer=0,i,j,w;
+        for(i=0;i<zeile.length;i++){w=trimText(zeile[i]).toLowerCase();for(j=0;j<bekannte.length;j++){if(bekannte[j]===w){treffer++;break;}}}
+        return treffer>=1;
+    }
     function xlsxDatenInStruktur(roh,hat){var m=roh.rohzeilen,max=0,i,j;for(i=0;i<m.length;i++)if(m[i].length>max)max=m[i].length;var s=[],d=[];if(hat){for(j=0;j<max;j++)s.push(trimText(m[0][j]||"")||"Spalte "+(j+1));i=1;}else{for(j=0;j<max;j++)s.push("Spalte "+(j+1));i=0;}for(;i<m.length;i++){var z=m[i].slice(0);while(z.length<max)z.push("");if(!istCsvZeileLeer(z))d.push(z);}return{spalten:s,datensaetze:d,anzahl:d.length,trennzeichen:"|",xlsx:true};}
 
     function csvDateiLesen(datei) {
