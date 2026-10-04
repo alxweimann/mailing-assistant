@@ -592,11 +592,16 @@
             var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
 
             if (fehlerfelder[feld]) {
+                label.text = "\u26a0 " + feld + ":";
                 try {
-                    var rotLabel = label.graphics.newPen(label.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+                    var rotLabel = label.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
                     label.graphics.foregroundColor = rotLabel;
-                    var rotEdit = edit.graphics.newPen(edit.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+
+                    var rotEdit = edit.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
                     edit.graphics.foregroundColor = rotEdit;
+
+                    var hellrot = edit.graphics.newBrush(ScriptUIGraphics.BrushType.SOLID_COLOR, [1, 0.88, 0.88]);
+                    edit.graphics.backgroundColor = hellrot;
                 } catch (e) {}
             }
 
@@ -611,7 +616,7 @@
             if (hatFehlerfeld) {
                 var fehlerHinweis = dlg.add("statictext", undefined, "Rot markierte Felder m\u00fcssen gepr\u00fcft oder erg\u00e4nzt werden.");
                 try {
-                    fehlerHinweis.graphics.foregroundColor = fehlerHinweis.graphics.newPen(fehlerHinweis.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+                    fehlerHinweis.graphics.foregroundColor = fehlerHinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
                 } catch (e2) {}
             }
         }
@@ -718,6 +723,23 @@
                 bearbeiten.datensatzNummer = nr;
                 bearbeiten.onClick = function(){
                     var ziel = this.datensatzNummer;
+                    var status = {};
+                    var si;
+                    var sk;
+
+                    if (csvDaten.freigabestatus) {
+                        for (sk in csvDaten.freigabestatus) {
+                            if (csvDaten.freigabestatus.hasOwnProperty(sk)) status[sk] = csvDaten.freigabestatus[sk];
+                        }
+                    } else {
+                        for (si = 0; si < csvDaten.anzahl; si++) status[si + 1] = "\u00dcbernehmen";
+                    }
+
+                    for (si = 0; si < auswahl.length; si++) {
+                        status[auswahl[si].datensatz] = auswahl[si].dropdown.selection ? auswahl[si].dropdown.selection.text : "Pr\u00fcfen";
+                    }
+
+                    csvDaten.freigabestatus = status;
                     dlg.close(3);
                     zeigeDatensatzBearbeiten(datei, csvDaten, mapping, ziel, nurOffene);
                 };
