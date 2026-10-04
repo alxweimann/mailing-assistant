@@ -812,12 +812,12 @@
         fortschritt.spacing = 10;
         fortschritt.margins = 18;
 
-        var statusText = fortschritt.add("statictext", undefined, "Excel-Datei wird ge\u00f6ffnet und vorbereitet ...");
+        var statusText = fortschritt.add("statictext", undefined, "Excel-Datei wird ge\u00f6ffnet ...");
         statusText.preferredSize.width = 430;
 
         var balken = fortschritt.add("progressbar", undefined, 0, 100);
         balken.preferredSize = [430, 18];
-        balken.value = 2;
+        balken.value = 1;
 
         var detail = fortschritt.add("statictext", undefined, "Bitte warten ...");
         detail.preferredSize.width = 430;
@@ -826,24 +826,172 @@
         fortschritt.show();
         try { fortschritt.update(); } catch (e0) {}
 
-        var ausgabe = temporareDateiPfad("mailing_assistant_xlsx");
-        var vb = "On Error Resume Next\r\n";
-        vb += "Dim xl,wb,ws,stm,ur,firstRow,firstCol,lastRow,lastCol,r,col,v\r\nSet xl=CreateObject(\"Excel.Application\")\r\nxl.Visible=False\r\n";
-        vb += "Set wb=xl.Workbooks.Open(\"" + vbScriptText(datei.fsName) + "\",False,True)\r\nIf Err.Number<>0 Then WScript.Quit 1\r\n";
-        vb += "Set ws=wb.Worksheets(\"" + vbScriptText(blatt) + "\")\r\nSet ur=ws.UsedRange\r\nfirstRow=ur.Row:firstCol=ur.Column:lastRow=firstRow+ur.Rows.Count-1:lastCol=firstCol+ur.Columns.Count-1\r\n";
-        vb += "ws.UsedRange.Columns.AutoFit\r\nSet stm=CreateObject(\"ADODB.Stream\")\r\nstm.Type=2\r\nstm.Charset=\"utf-8\"\r\nstm.Open\r\n";
-        vb += "For r=firstRow To lastRow\r\n For col=firstCol To lastCol\r\n v=ws.Cells(r,col).Text\r\n";
-        vb += " Dim n, ch, hx\r\n stm.WriteText \"~\"\r\n For n=1 To Len(v)\r\n  ch=AscW(Mid(v,n,1)):If ch<0 Then ch=ch+65536\r\n  hx=Hex(ch):hx=String(4-Len(hx),\"0\") & hx:stm.WriteText hx\r\n Next\r\n";
-        vb += " If col<lastCol Then stm.WriteText \"|\"\r\n Next\r\n stm.WriteText vbCrLf\r\nNext\r\n";
-        vb += "stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\nstm.Close\r\nwb.Close False\r\nxl.Quit\r\n";
+        var stamp = new Date().getTime();
+        var ausgabe = Folder.temp.fsName + "/mailing_assistant_xlsx_" + stamp + ".txt";
+        var statusPfad = Folder.temp.fsName + "/mailing_assistant_progress_" + stamp + ".txt";
+        var fertigPfad = Folder.temp.fsName + "/mailing_assistant_done_" + stamp + ".txt";
+        var fehlerPfad = Folder.temp.fsName + "/mailing_assistant_error_" + stamp + ".txt";
+        var scriptPfad = Folder.temp.fsName + "/mailing_assistant_import_" + stamp + ".vbs";
+
+        function dateiLoeschen(pfad) {
+            try {
+                var x = File(pfad);
+                if (x.exists) x.remove();
+            } catch (e) {}
+        }
+
+        function textDateiLesen(pfad) {
+            try {
+                var x = File(pfad);
+                if (!x.exists) return "";
+                x.encoding = "UTF-8";
+                if (!x.open("r")) return "";
+                var inhalt = x.read();
+                x.close();
+                return inhalt;
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function statusAktualisieren(inhalt, startZeit) {
+            if (!inhalt) return;
+            var teile = inhalt.replace(/\r/g, "").replace(/\n/g, "").split("|");
+            if (teile.length < 3) return;
+
+            var phase = teile[0];
+            var aktuell = parseInt(teile[1], 10);
+            var gesamt = parseInt(teile[2], 10);
+            if (isNaN(aktuell)) aktuell = 0;
+            if (isNaN(gesamt) || gesamt < 1) gesamt = 1;
+
+            if (phase == "OPEN") {
+                balken.value = 2;
+                statusText.text = "Excel-Datei wird ge\u00f6ffnet ...";
+                detail.text = "Bitte warten ...";
+            } else if (phase == "PREP") {
+                balken.value = 5;
+                statusText.text = "Tabellenblatt wird vorbereitet ...";
+                detail.text = "Datens\u00e4tze werden gez\u00e4hlt ...";
+            } else if (phase == "READ") {
+                var prozent = Math.round((aktuell / gesamt) * 100);
+                if (prozent < 0) prozent = 0;
+                if (prozent > 100) prozent = 100;
+                balken.value = prozent;
+                statusText.text = "Datens\u00e4tze eingelesen: " + aktuell + " von " + gesamt + " (" + prozent + " %)";
+
+                var vergangenMs = new Date().getTime() - startZeit;
+                if (aktuell > 0 && vergangenMs > 1000) {
+                    var msProDatensatz = vergangenMs / aktuell;
+                    var restSekunden = Math.round(((gesamt - aktuell) * msProDatensatz) / 1000);
+                    if (restSekunden < 0) restSekunden = 0;
+                    if (restSekunden < 60) detail.text = "Gesch\u00e4tzte Restzeit: ca. " + restSekunden + " Sek.";
+                    else detail.text = "Gesch\u00e4tzte Restzeit: ca. " + Math.ceil(restSekunden / 60) + " Min.";
+                } else {
+                    detail.text = "Gesch\u00e4tzte Restzeit wird berechnet ...";
+                }
+            } else if (phase == "SAVE") {
+                balken.value = 99;
+                statusText.text = "Daten werden abgeschlossen ...";
+                detail.text = "Bitte noch einen Moment warten.";
+            }
+            try { fortschritt.update(); } catch (e) {}
+        }
+
+        dateiLoeschen(ausgabe);
+        dateiLoeschen(statusPfad);
+        dateiLoeschen(fertigPfad);
+        dateiLoeschen(fehlerPfad);
+        dateiLoeschen(scriptPfad);
+
+        var vb = "";
+        vb += "On Error Resume Next\r\n";
+        vb += "Dim xl,wb,ws,stm,ur,firstRow,firstCol,lastRow,lastCol,r,col,v,n,ch,hx,fso,pf,donef,errf,totalRows,currentRow\r\n";
+        vb += "Set fso=CreateObject(\"Scripting.FileSystemObject\")\r\n";
+        vb += "Sub WriteProgress(phaseName,currentValue,totalValue)\r\n";
+        vb += " On Error Resume Next\r\n";
+        vb += " Dim p\r\n Set p=fso.CreateTextFile(\"" + vbScriptText(statusPfad) + "\",True,True)\r\n";
+        vb += " p.Write phaseName & \"|\" & currentValue & \"|\" & totalValue\r\n p.Close\r\n";
+        vb += "End Sub\r\n";
+        vb += "Call WriteProgress(\"OPEN\",0,1)\r\n";
+        vb += "Set xl=CreateObject(\"Excel.Application\")\r\n";
+        vb += "xl.Visible=False\r\n";
+        vb += "Set wb=xl.Workbooks.Open(\"" + vbScriptText(datei.fsName) + "\",False,True)\r\n";
+        vb += "If Err.Number<>0 Then\r\n";
+        vb += " Set errf=fso.CreateTextFile(\"" + vbScriptText(fehlerPfad) + "\",True,True)\r\n errf.Write \"Excel-Datei konnte nicht geoeffnet werden: \" & Err.Description\r\n errf.Close\r\n WScript.Quit 1\r\nEnd If\r\n";
+        vb += "Call WriteProgress(\"PREP\",0,1)\r\n";
+        vb += "Set ws=wb.Worksheets(\"" + vbScriptText(blatt) + "\")\r\n";
+        vb += "If Err.Number<>0 Then\r\n";
+        vb += " Set errf=fso.CreateTextFile(\"" + vbScriptText(fehlerPfad) + "\",True,True)\r\n errf.Write \"Tabellenblatt konnte nicht geoeffnet werden: \" & Err.Description\r\n errf.Close\r\n wb.Close False\r\n xl.Quit\r\n WScript.Quit 1\r\nEnd If\r\n";
+        vb += "Set ur=ws.UsedRange\r\n";
+        vb += "firstRow=ur.Row:firstCol=ur.Column:lastRow=firstRow+ur.Rows.Count-1:lastCol=firstCol+ur.Columns.Count-1\r\n";
+        vb += "totalRows=lastRow-firstRow+1\r\n";
+        vb += "If totalRows<1 Then totalRows=1\r\n";
+        vb += "Set stm=CreateObject(\"ADODB.Stream\")\r\n";
+        vb += "stm.Type=2\r\nstm.Charset=\"utf-8\"\r\nstm.Open\r\n";
+        vb += "currentRow=0\r\n";
+        vb += "For r=firstRow To lastRow\r\n";
+        vb += " currentRow=currentRow+1\r\n";
+        vb += " For col=firstCol To lastCol\r\n";
+        vb += "  v=ws.Cells(r,col).Text\r\n";
+        vb += "  stm.WriteText \"~\"\r\n";
+        vb += "  For n=1 To Len(v)\r\n";
+        vb += "   ch=AscW(Mid(v,n,1)):If ch<0 Then ch=ch+65536\r\n";
+        vb += "   hx=Hex(ch):hx=String(4-Len(hx),\"0\") & hx:stm.WriteText hx\r\n";
+        vb += "  Next\r\n";
+        vb += "  If col<lastCol Then stm.WriteText \"|\"\r\n";
+        vb += " Next\r\n";
+        vb += " stm.WriteText vbCrLf\r\n";
+        vb += " If currentRow=1 Or currentRow=totalRows Or (currentRow Mod 25)=0 Then Call WriteProgress(\"READ\",currentRow,totalRows)\r\n";
+        vb += "Next\r\n";
+        vb += "Call WriteProgress(\"SAVE\",totalRows,totalRows)\r\n";
+        vb += "stm.SaveToFile \"" + vbScriptText(ausgabe) + "\",2\r\n";
+        vb += "stm.Close\r\n";
+        vb += "wb.Close False\r\n";
+        vb += "xl.Quit\r\n";
+        vb += "Set donef=fso.CreateTextFile(\"" + vbScriptText(fertigPfad) + "\",True,True)\r\n";
+        vb += "donef.Write \"OK\"\r\ndonef.Close\r\n";
+
+        var scriptDatei = File(scriptPfad);
+        scriptDatei.encoding = "UTF-8";
+        if (!scriptDatei.open("w")) {
+            try { fortschritt.close(); } catch (e6) {}
+            throw new Error("Tempor\u00e4res Importskript konnte nicht erstellt werden.");
+        }
+        scriptDatei.write(vb);
+        scriptDatei.close();
 
         try {
-            app.doScript(vb, ScriptLanguage.VISUAL_BASIC);
+            var cmd = 'cmd.exe /c start "" /b cscript.exe //nologo "' + scriptPfad + '"';
+            system.callSystem(cmd);
 
-            balken.value = 10;
-            statusText.text = "Excel-Daten wurden vorbereitet. Datens\u00e4tze werden eingelesen ...";
-            detail.text = "Fortschritt wird ermittelt ...";
-            try { fortschritt.update(); } catch (e1) {}
+            var startZeit = new Date().getTime();
+            var timeoutMs = 60 * 60 * 1000;
+            var letzterStatus = "";
+
+            while (true) {
+                var fehlerText = textDateiLesen(fehlerPfad);
+                if (fehlerText != "") throw new Error(fehlerText);
+
+                if (File(fertigPfad).exists) break;
+
+                var statusInhalt = textDateiLesen(statusPfad);
+                if (statusInhalt != "" && statusInhalt != letzterStatus) {
+                    letzterStatus = statusInhalt;
+                    statusAktualisieren(statusInhalt, startZeit);
+                }
+
+                if ((new Date().getTime() - startZeit) > timeoutMs) {
+                    throw new Error("Zeit\u00fcberschreitung beim Einlesen der Excel-Datei.");
+                }
+
+                $.sleep(120);
+            }
+
+            balken.value = 100;
+            statusText.text = "Excel-Daten vollst\u00e4ndig eingelesen.";
+            detail.text = "100 %";
+            try { fortschritt.update(); } catch (e7) {}
 
             var f = File(ausgabe);
             if (!f.exists) throw new Error("Das Excel-Tabellenblatt konnte nicht gelesen werden.");
@@ -851,49 +999,18 @@
             if (!f.open("r")) throw new Error("Die Excel-Daten konnten nicht gelesen werden.");
             var t = f.read();
             f.close();
-            try { f.remove(); } catch (e2) {}
 
             var z = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
             var m = [];
             var i;
             var j;
             var q;
-            var gesamt = 0;
-
-            for (i = 0; i < z.length; i++) if (z[i] != "") gesamt++;
-            if (gesamt < 1) gesamt = 1;
-
-            var verarbeitet = 0;
-            var startZeit = new Date().getTime();
-            var letzteAktualisierung = -1;
 
             for (i = 0; i < z.length; i++) {
                 if (z[i] == "") continue;
-
                 q = z[i].split("|");
                 for (j = 0; j < q.length; j++) q[j] = xlsxZellwertDekodieren(q[j]);
                 m.push(q);
-                verarbeitet++;
-
-                var prozent = Math.round((verarbeitet / gesamt) * 100);
-                if (prozent != letzteAktualisierung || verarbeitet == gesamt) {
-                    letzteAktualisierung = prozent;
-                    balken.value = 10 + Math.round(prozent * 0.9);
-                    statusText.text = "Datens\u00e4tze eingelesen: " + verarbeitet + " von " + gesamt + " (" + prozent + " %)";
-
-                    var vergangenMs = new Date().getTime() - startZeit;
-                    var restText = "";
-                    if (verarbeitet > 0 && vergangenMs > 300) {
-                        var msProDatensatz = vergangenMs / verarbeitet;
-                        var restSekunden = Math.round(((gesamt - verarbeitet) * msProDatensatz) / 1000);
-                        if (restSekunden < 60) restText = "Gesch\u00e4tzte Restzeit: ca. " + restSekunden + " Sek.";
-                        else restText = "Gesch\u00e4tzte Restzeit: ca. " + Math.ceil(restSekunden / 60) + " Min.";
-                    } else {
-                        restText = "Gesch\u00e4tzte Restzeit wird berechnet ...";
-                    }
-                    detail.text = restText;
-                    try { fortschritt.update(); } catch (e3) {}
-                }
             }
 
             if (!m.length) throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine Daten.");
@@ -912,16 +1029,22 @@
             if (first < 0) throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine bef\u00fcllten Zellen.");
             if (first > 0) m = m.slice(first);
 
-            balken.value = 100;
-            statusText.text = "Einlesen abgeschlossen: " + m.length + " Zeilen verarbeitet.";
-            detail.text = "100 %";
-            try { fortschritt.update(); } catch (e4) {}
-            $.sleep(250);
-            fortschritt.close();
+            $.sleep(150);
+            try { fortschritt.close(); } catch (e8) {}
+
+            dateiLoeschen(ausgabe);
+            dateiLoeschen(statusPfad);
+            dateiLoeschen(fertigPfad);
+            dateiLoeschen(fehlerPfad);
+            dateiLoeschen(scriptPfad);
 
             return {rohzeilen:m};
         } catch (fehler) {
-            try { fortschritt.close(); } catch (e5) {}
+            try { fortschritt.close(); } catch (e9) {}
+            dateiLoeschen(ausgabe);
+            dateiLoeschen(statusPfad);
+            dateiLoeschen(fertigPfad);
+            dateiLoeschen(scriptPfad);
             throw fehler;
         }
     }
