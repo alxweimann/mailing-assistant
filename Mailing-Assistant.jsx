@@ -2115,18 +2115,16 @@
                 }
 
                 var zeilen=[];
-                var i;
-                for(i=0;i<felder.length;i++){
-                    var feld=felder[i];
+                var j;
+                for(j=0;j<felder.length;j++){
+                    var feld=felder[j];
                     var wert=wertAusDatensatz(mapping,ds,feld);
                     var andererWert=wertAusDatensatz(mapping,anderer,feld);
 
-                    // Komplett leere Felder auf beiden Seiten brauchen wir nicht anzuzeigen.
                     if(wert==""&&andererWert=="")continue;
 
                     var abweichend=anzeigeVergleich(wert)!=anzeigeVergleich(andererWert);
-                    var label=feld=="Stra\u00dfe"?"Stra\u00dfe":feld;
-                    zeilen.push((abweichend?"\u2260 ":"  ")+label+": "+(wert!=""?wert:"[leer]"));
+                    zeilen.push((abweichend?"\u2260 ":"  ")+feld+": "+(wert!=""?wert:"[leer]"));
                 }
 
                 return zeilen.join("\r\n");
@@ -2134,13 +2132,14 @@
 
             seitenContainer.add("statictext",undefined,"Dublettenpr\u00fcfung");
             seitenContainer.add("statictext",undefined,"Letzte Pr\u00fcfinstanz nach Bereinigung und manueller Korrektur.");
-            seitenContainer.add("statictext",undefined,"Vergleiche beide Varianten und entscheide, welcher Datensatz erhalten bleiben soll.");
+            seitenContainer.add("statictext",undefined,"Vergleiche die Dubletten paarweise und entscheide, welche Daten erhalten bleiben sollen.");
 
             var info=seitenContainer.add("panel");
             info.orientation="column";info.alignChildren=["left","top"];info.margins=15;info.spacing=6;
             info.add("statictext",undefined,"Gefundene Dublettenpaare: "+dubletten.length);
 
             if(dubletten.length==0) {
+                delete csvDaten.dublettenSeitenIndex;
                 seitenContainer.add("statictext",undefined,"Keine Dubletten gefunden. Die freigegebenen Datens\u00e4tze k\u00f6nnen weiterverarbeitet werden.");
                 var buttonsLeer=seitenContainer.add("group");buttonsLeer.alignment="right";
                 var zurueckLeer=buttonsLeer.add("button",undefined,"Zur\u00fcck");
@@ -2161,124 +2160,146 @@
             }
 
             if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
-            var auswahl=[];
+            var index=csvDaten.dublettenSeitenIndex||0;
+            if(index<0)index=0;
+            if(index>=dubletten.length)index=dubletten.length-1;
+            csvDaten.dublettenSeitenIndex=index;
 
-            for(i=0;i<dubletten.length;i++){
-                var d=dubletten[i];
-                var schluessel=String(d.original)+"-"+String(d.datensatz);
+            var d=dubletten[index];
+            var schluessel=String(d.original)+"-"+String(d.datensatz);
 
-                var paar=seitenContainer.add("panel");
-                paar.text="Dublettenpaar "+(i+1);
-                paar.orientation="column";
-                paar.alignChildren=["fill","top"];
-                paar.margins=12;
-                paar.spacing=8;
+            info.add("statictext",undefined,"Aktuelles Paar: "+(index+1)+" von "+dubletten.length);
 
-                var vergleich=paar.add("group");
-                vergleich.orientation="row";
-                vergleich.alignChildren=["fill","top"];
-                vergleich.spacing=12;
+            var paar=seitenContainer.add("panel");
+            paar.text="Dublettenpaar "+(index+1)+" von "+dubletten.length;
+            paar.orientation="column";
+            paar.alignChildren=["fill","top"];
+            paar.margins=12;
+            paar.spacing=8;
 
-                var links=vergleich.add("panel");
-                links.text="Datensatz "+d.original;
-                links.orientation="column";
-                links.alignChildren=["fill","top"];
-                links.margins=10;
-                var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original,d.datensatz),{multiline:true,readonly:true});
-                linksText.preferredSize=[320,155];
+            var vergleich=paar.add("group");
+            vergleich.orientation="row";
+            vergleich.alignChildren=["fill","top"];
+            vergleich.spacing=12;
 
-                var rechts=vergleich.add("panel");
-                rechts.text="Datensatz "+d.datensatz;
-                rechts.orientation="column";
-                rechts.alignChildren=["fill","top"];
-                rechts.margins=10;
-                var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz,d.original),{multiline:true,readonly:true});
-                rechtsText.preferredSize=[320,155];
+            var links=vergleich.add("panel");
+            links.text="Datensatz "+d.original;
+            links.orientation="column";
+            links.alignChildren=["fill","top"];
+            links.margins=10;
+            var linksText=links.add("edittext",undefined,datensatzVergleichstext(d.original,d.datensatz),{multiline:true,readonly:true});
+            linksText.preferredSize=[360,245];
 
-                var entscheidung=paar.add("group");
-                entscheidung.orientation="row";
-                entscheidung.alignChildren=["left","center"];
-                entscheidung.add("statictext",undefined,"Entscheidung:");
-                var optionen=[
-                    "Pr\u00fcfen",
-                    "Datensatz "+d.original+" behalten",
-                    "Datensatz "+d.datensatz+" behalten",
-                    "Beide behalten"
-                ];
-                var dd=entscheidung.add("dropdownlist",undefined,optionen);
-                dd.preferredSize.width=230;
+            var rechts=vergleich.add("panel");
+            rechts.text="Datensatz "+d.datensatz;
+            rechts.orientation="column";
+            rechts.alignChildren=["fill","top"];
+            rechts.margins=10;
+            var rechtsText=rechts.add("edittext",undefined,datensatzVergleichstext(d.datensatz,d.original),{multiline:true,readonly:true});
+            rechtsText.preferredSize=[360,245];
 
-                var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren / bearbeiten");
-                zusammenfuehren.preferredSize.width=170;
-                zusammenfuehren.originalNr=d.original;
-                zusammenfuehren.dubletteNr=d.datensatz;
+            var entscheidung=paar.add("group");
+            entscheidung.orientation="row";
+            entscheidung.alignChildren=["left","center"];
+            entscheidung.add("statictext",undefined,"Entscheidung:");
 
-                var alt=csvDaten.dublettenstatus[schluessel]||"Pr\u00fcfen";
-                if(alt=="links")dd.selection=1;
-                else if(alt=="rechts")dd.selection=2;
-                else if(alt=="beide")dd.selection=3;
-                else dd.selection=0;
+            var optionen=[
+                "Pr\u00fcfen",
+                "Datensatz "+d.original+" behalten",
+                "Datensatz "+d.datensatz+" behalten",
+                "Beide behalten"
+            ];
+            var dd=entscheidung.add("dropdownlist",undefined,optionen);
+            dd.preferredSize.width=245;
 
-                auswahl.push({
-                    schluessel:schluessel,
-                    original:d.original,
-                    datensatz:d.datensatz,
-                    dropdown:dd
-                });
+            var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren / bearbeiten");
+            zusammenfuehren.preferredSize.width=180;
 
-                zusammenfuehren.onClick=function(){
-                    var j;
-                    for(j=0;j<auswahl.length;j++){
-                        csvDaten.dublettenstatus[auswahl[j].schluessel]=statusAusDropdown(auswahl[j]);
-                    }
-                    zeigeDublettenZusammenfuehrenSeite(mapping,this.originalNr,this.dubletteNr);
-                };
-            }
+            var alt=csvDaten.dublettenstatus[schluessel]||"pruefen";
+            if(alt=="links")dd.selection=1;
+            else if(alt=="rechts")dd.selection=2;
+            else if(alt=="beide")dd.selection=3;
+            else dd.selection=0;
 
-            var markerHinweis=seitenContainer.add("statictext",undefined,"\u2260 kennzeichnet Felder, deren Originalwerte voneinander abweichen.");
-            markerHinweis.characters=100;
-            var hinweis=seitenContainer.add("statictext",undefined,"Bei \u201elinks behalten\u201c oder \u201erechts behalten\u201c wird der jeweils andere Datensatz ausgeschlossen. Mit \u201eZusammenf\u00fchren / bearbeiten\u201c kannst du feldweise einen bereinigten Zieldatensatz erzeugen.");
-            hinweis.characters=100;
-
-            var buttons=seitenContainer.add("group");buttons.alignment="right";
-            var zurueck=buttons.add("button",undefined,"Zur\u00fcck");
-            var weiter=buttons.add("button",undefined,"Weiter");
-
-            function statusAusDropdown(a) {
-                var idx=a.dropdown.selection?a.dropdown.selection.index:0;
+            function statusAusDropdown() {
+                var idx=dd.selection?dd.selection.index:0;
                 if(idx==1)return "links";
                 if(idx==2)return "rechts";
                 if(idx==3)return "beide";
                 return "pruefen";
             }
 
-            zurueck.onClick=function(){
-                var j;
-                for(j=0;j<auswahl.length;j++){
-                    csvDaten.dublettenstatus[auswahl[j].schluessel]=statusAusDropdown(auswahl[j]);
-                }
+            function aktuelleEntscheidungSpeichern() {
+                csvDaten.dublettenstatus[schluessel]=statusAusDropdown();
+            }
+
+            zusammenfuehren.onClick=function(){
+                aktuelleEntscheidungSpeichern();
+                zeigeDublettenZusammenfuehrenSeite(mapping,d.original,d.datensatz);
+            };
+
+            var markerHinweis=seitenContainer.add("statictext",undefined,"\u2260 kennzeichnet Felder, deren Originalwerte voneinander abweichen.");
+            markerHinweis.characters=100;
+
+            var navigation=seitenContainer.add("group");
+            navigation.orientation="row";
+            navigation.alignment="fill";
+
+            var navLinks=navigation.add("group");
+            navLinks.alignment="left";
+            var zurFreigabe=navLinks.add("button",undefined,"Zur\u00fcck zur Freigabe");
+            var vorheriges=navLinks.add("button",undefined,"Vorheriges Paar");
+            vorheriges.enabled=index>0;
+
+            var navRechts=navigation.add("group");
+            navRechts.alignment="right";
+            var naechstes;
+            if(index<dubletten.length-1) naechstes=navRechts.add("button",undefined,"N\u00e4chstes Paar");
+            else naechstes=navRechts.add("button",undefined,"Dublettenpr\u00fcfung abschlie\u00dfen");
+
+            zurFreigabe.onClick=function(){
+                aktuelleEntscheidungSpeichern();
+                delete csvDaten.dublettenSeitenIndex;
                 zeigeFinaleFreigabeSeite(mapping);
             };
 
-            weiter.onClick=function(){
-                var j,offen=[];
-                for(j=0;j<auswahl.length;j++){
-                    var entscheidung=statusAusDropdown(auswahl[j]);
-                    csvDaten.dublettenstatus[auswahl[j].schluessel]=entscheidung;
-                    if(entscheidung=="pruefen")offen.push(auswahl[j].original+"/"+auswahl[j].datensatz);
+            vorheriges.onClick=function(){
+                aktuelleEntscheidungSpeichern();
+                csvDaten.dublettenSeitenIndex=index-1;
+                zeigeDublettenPruefungSeite(mapping);
+            };
+
+            naechstes.onClick=function(){
+                aktuelleEntscheidungSpeichern();
+
+                if(index<dubletten.length-1){
+                    csvDaten.dublettenSeitenIndex=index+1;
+                    zeigeDublettenPruefungSeite(mapping);
+                    return;
+                }
+
+                var offen=[];
+                var j;
+                for(j=0;j<dubletten.length;j++){
+                    var dj=dubletten[j];
+                    var key=String(dj.original)+"-"+String(dj.datensatz);
+                    var ent=csvDaten.dublettenstatus[key]||"pruefen";
+                    if(ent=="pruefen")offen.push(j);
                 }
 
                 if(offen.length>0){
-                    letzteNachricht="Dubletten noch offen: "+offen.join(", ")+".";
+                    csvDaten.dublettenSeitenIndex=offen[0];
+                    letzteNachricht="Noch nicht entschieden: "+offen.length+" Dublettenpaar(e).";
                     zeigeDublettenPruefungSeite(mapping);
                     return;
                 }
 
                 if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
 
-                for(j=0;j<auswahl.length;j++){
-                    var a=auswahl[j];
-                    var e=csvDaten.dublettenstatus[a.schluessel];
+                for(j=0;j<dubletten.length;j++){
+                    var a=dubletten[j];
+                    var key2=String(a.original)+"-"+String(a.datensatz);
+                    var e=csvDaten.dublettenstatus[key2];
 
                     if(e=="links"){
                         csvDaten.freigabestatus[a.original]="\u00dcbernehmen";
@@ -2300,6 +2321,7 @@
                 }
                 csvDaten.freigegebeneDatensatznummern=frei;
                 csvDaten.ausgeschlosseneDatensatznummern=aus;
+                delete csvDaten.dublettenSeitenIndex;
                 zeigeMailingSeite(mapping);
             };
 
