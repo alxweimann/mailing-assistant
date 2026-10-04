@@ -1031,15 +1031,18 @@
             var fuellung = g.newBrush(g.BrushType.SOLID_COLOR, [0.92, 0.92, 0.92, 1]);
             var rahmen = g.newPen(g.PenType.SOLID_COLOR, [0.48, 0.48, 0.48, 1], 1);
 
+            g.newPath();
             g.rectPath(0, 0, w, h);
             g.fillPath(hintergrund);
 
             if (fuellBreite > 0) {
-                g.rectPath(innen, innen, fuellBreite, h - innen * 2);
+                g.newPath();
+                g.rectPath(innen, innen, innen + fuellBreite, h - innen);
                 g.fillPath(fuellung);
             }
 
-            g.rectPath(0.5, 0.5, w - 1, h - 1);
+            g.newPath();
+            g.rectPath(0.5, 0.5, w - 0.5, h - 0.5);
             g.strokePath(rahmen);
         };
 
@@ -2216,6 +2219,25 @@
                 feldPanel.margins=12;
                 feldPanel.spacing=7;
 
+                var problemKopf=feldPanel.add("group");
+                problemKopf.orientation="row";
+                problemKopf.alignChildren=["left","center"];
+                problemKopf.spacing=8;
+
+                var problemMarker=problemKopf.add("panel");
+                problemMarker.preferredSize=[9,18];
+                problemMarker.minimumSize=[9,18];
+                problemMarker.maximumSize=[9,18];
+                problemMarker.onDraw=function(){
+                    var g=this.graphics;
+                    var b=g.newBrush(g.BrushType.SOLID_COLOR,[0.95,0.55,0.10,1]);
+                    g.newPath();
+                    g.rectPath(0,0,this.size.width,this.size.height);
+                    g.fillPath(b);
+                };
+
+                problemKopf.add("statictext",undefined,"Abweichender Wert");
+
                 var quellwahl=feldPanel.add("group");
                 quellwahl.orientation="row";
                 quellwahl.alignChildren=["left","center"];
@@ -2456,8 +2478,16 @@
             var dh3=dh.add("statictext",undefined,"Datensatz "+d.datensatz);dh3.preferredSize.width=270;
 
             for(i=0;i<vergleich.diff.length;i++){
-                var dr=diffPanel.add("group");dr.orientation="row";
-                var f1=dr.add("statictext",undefined,vergleich.diff[i].feld);f1.preferredSize.width=130;
+                var dr=diffPanel.add("group");dr.orientation="row";dr.alignChildren=["left","center"];
+                var dm=dr.add("panel");dm.preferredSize=[7,16];dm.minimumSize=[7,16];dm.maximumSize=[7,16];
+                dm.onDraw=function(){
+                    var g=this.graphics;
+                    var b=g.newBrush(g.BrushType.SOLID_COLOR,[0.95,0.55,0.10,1]);
+                    g.newPath();
+                    g.rectPath(0,0,this.size.width,this.size.height);
+                    g.fillPath(b);
+                };
+                var f1=dr.add("statictext",undefined,vergleich.diff[i].feld);f1.preferredSize.width=123;
                 var f2=dr.add("statictext",undefined,vergleich.diff[i].links!=""?vergleich.diff[i].links:"[leer]");f2.preferredSize.width=270;
                 var f3=dr.add("statictext",undefined,vergleich.diff[i].rechts!=""?vergleich.diff[i].rechts:"[leer]");f3.preferredSize.width=270;
             }
