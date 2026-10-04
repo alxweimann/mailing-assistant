@@ -154,6 +154,69 @@
         return fundstellen;
     }
 
+    function dublettenTextNormalisieren(text) {
+        var wert = trimText(text).toLowerCase();
+        wert = wert.replace(/\u00a0/g, " ");
+        wert = wert.replace(/\s+/g, " ");
+        return wert;
+    }
+
+    function eindeutigeDublettenPruefen(csvDaten, mapping) {
+        var fundstellen = [];
+        var gesehen = {};
+        var i;
+        for (i = 0; i < csvDaten.datensaetze.length; i++) {
+            var datensatz = csvDaten.datensaetze[i];
+            var firma = mappingWert(csvDaten, mapping, datensatz, "Firma");
+            var vorname = mappingWert(csvDaten, mapping, datensatz, "Vorname");
+            var nachname = mappingWert(csvDaten, mapping, datensatz, "Nachname");
+            var adresszusatz = mappingWert(csvDaten, mapping, datensatz, "Adresszusatz");
+            var strasse = mappingWert(csvDaten, mapping, datensatz, "Stra\u00dfe");
+            var hausnummer = mappingWert(csvDaten, mapping, datensatz, "Hausnummer");
+            var postfach = mappingWert(csvDaten, mapping, datensatz, "Postfach");
+            var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
+            var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
+            var land = mappingWert(csvDaten, mapping, datensatz, "Land");
+
+            var landNorm = dublettenTextNormalisieren(land);
+            if (landNorm == "" || landNorm == "de" || landNorm == "deu" || landNorm == "germany") landNorm = "deutschland";
+
+            var empfaenger = verbindeTeile([firma, vorname, nachname]);
+            var anschrift = postfach != "" ? "Postfach " + postfach : verbindeTeile([strasse, hausnummer]);
+            var schluesselTeile = [
+                dublettenTextNormalisieren(firma),
+                dublettenTextNormalisieren(vorname),
+                dublettenTextNormalisieren(nachname),
+                dublettenTextNormalisieren(adresszusatz),
+                dublettenTextNormalisieren(postfach),
+                dublettenTextNormalisieren(strasse),
+                dublettenTextNormalisieren(hausnummer),
+                dublettenTextNormalisieren(plz),
+                dublettenTextNormalisieren(ort),
+                landNorm
+            ];
+
+            var hatEmpfaenger = firma != "" || vorname != "" || nachname != "";
+            var hatAnschrift = postfach != "" || strasse != "";
+            var hatOrt = plz != "" || ort != "";
+            if (!hatEmpfaenger || !hatAnschrift || !hatOrt) continue;
+
+            var schluessel = schluesselTeile.join("|");
+            if (gesehen[schluessel] !== undefined) {
+                fundstellen.push({
+                    datensatz: i + 1,
+                    original: gesehen[schluessel] + 1,
+                    empfaenger: empfaenger,
+                    anschrift: anschrift,
+                    ort: verbindeTeile([plz, ort])
+                });
+            } else {
+                gesehen[schluessel] = i;
+            }
+        }
+        return fundstellen;
+    }
+
     function verbindeTeile(teile) {
         var ergebnis = [];
         var i;
@@ -549,6 +612,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         var problematischeZeichen = problematischeZeichenErkennen(csvDaten);
         var plzHinweise = deutschePlzPruefen(csvDaten, mapping);
         var postalHinweise = postalischePflichtfelderPruefen(csvDaten, mapping);
+        var dublettenHinweise = eindeutigeDublettenPruefen(csvDaten, mapping);
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datenbereinigung");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Sichere Textbereinigung");
@@ -558,6 +622,7 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         info.add("statictext", undefined, "Problematische/versteckte Zeichen erkannt: " + problematischeZeichen.length);
         info.add("statictext", undefined, "PLZ-Pr\u00fcfhinweise: " + plzHinweise.length);
         info.add("statictext", undefined, "Postalische Pflichtfeld-Hinweise: " + postalHinweise.length);
+        info.add("statictext", undefined, "Eindeutige Dubletten-Hinweise: " + dublettenHinweise.length);
         info.add("statictext", undefined, "Die Quelldatei bleibt unver\u00e4ndert. Die Korrekturen gelten nur intern f\u00fcr diesen Mailing-Auftrag.");
         if (protokoll.length > 0) {
             var bereich = dlg.add("panel"); bereich.text = "Bereinigungsprotokoll \u2013 erste 20 \u00c4nderungen"; bereich.orientation = "column"; bereich.alignChildren = ["fill", "top"]; bereich.margins = 15;
@@ -596,6 +661,21 @@ dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
             if (postalHinweise.length > maximalePostalPruefung) dlg.add("statictext", undefined, maximalePostalPruefung + " von " + postalHinweise.length + " postalischen Pr\u00fcfhinweisen werden angezeigt.");
             dlg.add("statictext", undefined, "Diese Datens\u00e4tze werden nur markiert; es erfolgt keine automatische Korrektur.");
         } else dlg.add("statictext", undefined, "Keine fehlenden postalischen Pflichtfelder erkannt.");
+
+        if (dublettenHinweise.length > 0) {
+            var dublettenBereich = dlg.add("panel"); dublettenBereich.text = "Pr\u00fcfhinweise \u2013 eindeutige Dubletten"; dublettenBereich.orientation = "column"; dublettenBereich.alignChildren = ["fill", "top"]; dublettenBereich.margins = 15;
+            var dublettenListe = dublettenBereich.add("listbox", undefined, [], {numberOfColumns: 5, showHeaders: true, columnTitles: ["Datensatz", "Dublette von", "Empf\u00e4nger", "Anschrift", "PLZ / Ort"], columnWidths: [70, 90, 180, 190, 150]}); dublettenListe.preferredSize = [760, 180];
+            var maximaleDubletten = Math.min(20, dublettenHinweise.length); var dh; var dublettenEintrag;
+            for (dh = 0; dh < maximaleDubletten; dh++) {
+                dublettenEintrag = dublettenListe.add("item", String(dublettenHinweise[dh].datensatz));
+                dublettenEintrag.subItems[0].text = String(dublettenHinweise[dh].original);
+                dublettenEintrag.subItems[1].text = dublettenHinweise[dh].empfaenger;
+                dublettenEintrag.subItems[2].text = dublettenHinweise[dh].anschrift;
+                dublettenEintrag.subItems[3].text = dublettenHinweise[dh].ort;
+            }
+            if (dublettenHinweise.length > maximaleDubletten) dlg.add("statictext", undefined, maximaleDubletten + " von " + dublettenHinweise.length + " Dubletten-Hinweisen werden angezeigt.");
+            dlg.add("statictext", undefined, "Dubletten werden nur markiert. Es wird kein Datensatz automatisch entfernt oder zusammengef\u00fchrt.");
+        } else dlg.add("statictext", undefined, "Keine eindeutigen postalischen Dubletten erkannt.");
 
         var buttons = dlg.add("group"); buttons.alignment = "right"; var zurueck = buttons.add("button", undefined, "Zur\u00fcck"); var fertig = buttons.add("button", undefined, "Fertig");
         zurueck.onClick = function () { dlg.close(1); }; fertig.onClick = function () { dlg.close(2); };
