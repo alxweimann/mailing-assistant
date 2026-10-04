@@ -297,21 +297,31 @@
                 deutschePlzPruefen(csvDaten, mapping),
                 postalischePflichtfelderPruefen(csvDaten, mapping),
                 eindeutigeDublettenPruefen(csvDaten, mapping),
-                problematischeZeichenErkennen(csvDaten)
+                problematischeZeichenErkennen(csvDaten),
+                ergebnis == 2
             );
         }
     }
 
-    function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen) {
+    function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen, nurOffene) {
         var auffaellig = auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
+        var vorhandenerStatus = csvDaten.freigabestatus || {};
+        if (nurOffene) {
+            var offene = [];
+            var oi;
+            for (oi = 0; oi < auffaellig.length; oi++) {
+                if ((vorhandenerStatus[auffaellig[oi].datensatz] || "Pr\u00fcfen") == "Pr\u00fcfen") offene.push(auffaellig[oi]);
+            }
+            auffaellig = offene;
+        }
         var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datensatzfreigabe");
         dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
         dlg.add("statictext", undefined, "Datensatzfreigabe");
-        dlg.add("statictext", undefined, "Auff\u00e4llige Datens\u00e4tze werden nicht automatisch verworfen. Lege f\u00fcr jeden Datensatz fest, wie er behandelt werden soll.");
+        dlg.add("statictext", undefined, nurOffene ? "Hier werden nur noch offene Datens\u00e4tze angezeigt." : "Auff\u00e4llige Datens\u00e4tze werden nicht automatisch verworfen. Lege f\u00fcr jeden Datensatz fest, wie er behandelt werden soll.");
 
         var info = dlg.add("panel"); info.orientation = "column"; info.alignChildren = ["left", "top"]; info.margins = 15; info.spacing = 6;
         info.add("statictext", undefined, "Gesamte Datens\u00e4tze: " + csvDaten.anzahl);
-        info.add("statictext", undefined, "Auff\u00e4llige Datens\u00e4tze: " + auffaellig.length);
+        info.add("statictext", undefined, (nurOffene ? "Offene Datens\u00e4tze: " : "Auff\u00e4llige Datens\u00e4tze: ") + auffaellig.length);
         info.add("statictext", undefined, "Unauff\u00e4llige Datens\u00e4tze werden automatisch als \u201e\u00dcbernehmen\u201c behandelt.");
 
         var auswahl = [];
@@ -337,7 +347,9 @@
                 var nrt = row.add("statictext", undefined, String(nr)); nrt.preferredSize.width = 70;
                 var et = row.add("statictext", undefined, empfaenger); et.preferredSize.width = 180;
                 var gt = row.add("statictext", undefined, auffaellig[i].gruende.join(" ")); gt.preferredSize.width = 420;
-                var dd = row.add("dropdownlist", undefined, ["Pr\u00fcfen", "\u00dcbernehmen", "Ausschlie\u00dfen"]); dd.preferredSize.width = 120; dd.selection = 0;
+                var dd = row.add("dropdownlist", undefined, ["Pr\u00fcfen", "\u00dcbernehmen", "Ausschlie\u00dfen"]); dd.preferredSize.width = 120;
+                var bestehend = vorhandenerStatus[nr] || "Pr\u00fcfen";
+                dd.selection = bestehend == "\u00dcbernehmen" ? 1 : (bestehend == "Ausschlie\u00dfen" ? 2 : 0);
                 auswahl.push({datensatz:nr, dropdown:dd});
             }
         } else {
@@ -351,7 +363,12 @@
         weiter.onClick = function(){
             var status = {};
             var i;
-            for (i = 0; i < csvDaten.anzahl; i++) status[i + 1] = "\u00dcbernehmen";
+            var k0;
+            if (csvDaten.freigabestatus) {
+                for (k0 in csvDaten.freigabestatus) if (csvDaten.freigabestatus.hasOwnProperty(k0)) status[k0] = csvDaten.freigabestatus[k0];
+            } else {
+                for (i = 0; i < csvDaten.anzahl; i++) status[i + 1] = "\u00dcbernehmen";
+            }
             for (i = 0; i < auswahl.length; i++) status[auswahl[i].datensatz] = auswahl[i].dropdown.selection ? auswahl[i].dropdown.selection.text : "Pr\u00fcfen";
             csvDaten.freigabestatus = status;
             dlg.close(2);
