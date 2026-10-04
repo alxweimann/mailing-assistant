@@ -1957,6 +1957,89 @@
             neuLayouten();
         }
 
+        function zeigeDublettenZusammenfuehrenSeite(mapping, originalNr, dubletteNr) {
+            leeren();
+            dlg.text="Mailing-Assistant \u2013 Dublette zusammenf\u00fchren";
+
+            var linksDs=csvDaten.datensaetze[originalNr-1];
+            var rechtsDs=csvDaten.datensaetze[dubletteNr-1];
+            var felder=[
+                "Firma","Anrede","Titel","Vorname","Nachname","Adresszusatz",
+                "Stra\u00dfe","Hausnummer","Postfach","PLZ","Ort","Land",
+                "E-Mail","Telefon","Kundennummer","Selektionsmerkmal","Sonstiges"
+            ];
+
+            seitenContainer.add("statictext",undefined,"Dublette zusammenf\u00fchren");
+            seitenContainer.add("statictext",undefined,"Erzeuge aus beiden Datens\u00e4tzen einen bereinigten Zieldatensatz. Die Originaldatei bleibt unver\u00e4ndert.");
+            seitenContainer.add("statictext",undefined,"Links: Datensatz "+originalNr+"    |    Rechts: Datensatz "+dubletteNr);
+
+            var kopf=seitenContainer.add("group");kopf.orientation="row";
+            var k1=kopf.add("statictext",undefined,"Feld");k1.preferredSize.width=120;
+            var k2=kopf.add("statictext",undefined,"Links");k2.preferredSize.width=185;
+            var k3=kopf.add("statictext",undefined,"Rechts");k3.preferredSize.width=185;
+            var k4=kopf.add("statictext",undefined,"Zielwert");k4.preferredSize.width=220;
+
+            var panel=seitenContainer.add("panel");
+            panel.orientation="column";panel.alignChildren=["fill","top"];panel.margins=10;panel.spacing=4;
+
+            var eingaben=[];
+            var i;
+            for(i=0;i<felder.length;i++){
+                var feld=felder[i];
+                var lv=wertAusDatensatz(mapping,linksDs,feld);
+                var rv=wertAusDatensatz(mapping,rechtsDs,feld);
+
+                // Felder, die auf beiden Seiten nicht zugeordnet/leer sind, ausblenden.
+                if(lv==""&&rv=="")continue;
+
+                var row=panel.add("group");row.orientation="row";row.alignChildren=["left","center"];
+                var lab=row.add("statictext",undefined,feld);lab.preferredSize.width=120;
+
+                var ltxt=row.add("edittext",undefined,lv,{readonly:true});ltxt.preferredSize.width=185;
+                var rtxt=row.add("edittext",undefined,rv,{readonly:true});rtxt.preferredSize.width=185;
+
+                var ziel=row.add("edittext",undefined,lv!=""?lv:rv);ziel.preferredSize.width=220;
+
+                var bl=row.add("button",undefined,"L");bl.preferredSize=[28,24];
+                var br=row.add("button",undefined,"R");br.preferredSize=[28,24];
+
+                bl.zielFeld=ziel;bl.quellWert=lv;
+                br.zielFeld=ziel;br.quellWert=rv;
+                bl.onClick=function(){this.zielFeld.text=this.quellWert;};
+                br.onClick=function(){this.zielFeld.text=this.quellWert;};
+
+                eingaben.push({feld:feld,edit:ziel});
+            }
+
+            var hinweis=seitenContainer.add("statictext",undefined,"L/R \u00fcbernimmt den jeweiligen Quellwert. Der Zielwert kann jederzeit direkt bearbeitet werden.");
+            hinweis.characters=100;
+
+            var buttons=seitenContainer.add("group");buttons.alignment="right";
+            var abbrechen=buttons.add("button",undefined,"Abbrechen");
+            var speichern=buttons.add("button",undefined,"Zusammenf\u00fchren");
+
+            abbrechen.onClick=function(){zeigeDublettenPruefungSeite(mapping);};
+
+            speichern.onClick=function(){
+                var j;
+                for(j=0;j<eingaben.length;j++){
+                    mappingWertSetzenLokal(mapping,linksDs,eingaben[j].feld,eingaben[j].edit.text);
+                }
+
+                if(!csvDaten.freigabestatus)csvDaten.freigabestatus={};
+                csvDaten.freigabestatus[originalNr]="\u00dcbernehmen";
+                csvDaten.freigabestatus[dubletteNr]="Ausschlie\u00dfen";
+
+                if(!csvDaten.dublettenstatus)csvDaten.dublettenstatus={};
+                csvDaten.dublettenstatus[String(originalNr)+"-"+String(dubletteNr)]="zusammengefuehrt";
+
+                letzteNachricht="Datensatz "+originalNr+" wurde aus beiden Varianten zusammengef\u00fchrt. Datensatz "+dubletteNr+" wurde ausgeschlossen.";
+                zeigeDublettenPruefungSeite(mapping);
+            };
+
+            neuLayouten();
+        }
+
         function zeigeDublettenPruefungSeite(mapping) {
             leeren();
             dlg.text="Mailing-Assistant \u2013 Dublettenpr\u00fcfung";
@@ -2083,6 +2166,11 @@
                 var dd=entscheidung.add("dropdownlist",undefined,optionen);
                 dd.preferredSize.width=230;
 
+                var zusammenfuehren=entscheidung.add("button",undefined,"Zusammenf\u00fchren / bearbeiten");
+                zusammenfuehren.preferredSize.width=170;
+                zusammenfuehren.originalNr=d.original;
+                zusammenfuehren.dubletteNr=d.datensatz;
+
                 var alt=csvDaten.dublettenstatus[schluessel]||"Pr\u00fcfen";
                 if(alt=="links")dd.selection=1;
                 else if(alt=="rechts")dd.selection=2;
@@ -2095,11 +2183,19 @@
                     datensatz:d.datensatz,
                     dropdown:dd
                 });
+
+                zusammenfuehren.onClick=function(){
+                    var j;
+                    for(j=0;j<auswahl.length;j++){
+                        csvDaten.dublettenstatus[auswahl[j].schluessel]=statusAusDropdown(auswahl[j]);
+                    }
+                    zeigeDublettenZusammenfuehrenSeite(mapping,this.originalNr,this.dubletteNr);
+                };
             }
 
             var markerHinweis=seitenContainer.add("statictext",undefined,"\u2260 kennzeichnet Felder, deren Originalwerte voneinander abweichen.");
             markerHinweis.characters=100;
-            var hinweis=seitenContainer.add("statictext",undefined,"Bei \u201elinks behalten\u201c oder \u201erechts behalten\u201c wird der jeweils andere Datensatz ausgeschlossen. \u201eBeide behalten\u201c l\u00e4sst beide Datens\u00e4tze in der Mailing-Auflage.");
+            var hinweis=seitenContainer.add("statictext",undefined,"Bei \u201elinks behalten\u201c oder \u201erechts behalten\u201c wird der jeweils andere Datensatz ausgeschlossen. Mit \u201eZusammenf\u00fchren / bearbeiten\u201c kannst du feldweise einen bereinigten Zieldatensatz erzeugen.");
             hinweis.characters=100;
 
             var buttons=seitenContainer.add("group");buttons.alignment="right";
