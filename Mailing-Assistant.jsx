@@ -235,6 +235,52 @@
         return result;
     }
 
+    function zeigeProduktionsausgabeAuswahl(datei, csvDaten, mapping) {
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Produktionsausgabe");
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
+        dlg.spacing = 12;
+        dlg.margins = 20;
+
+        dlg.add("statictext", undefined, "Produktionsausgabe ausw\u00e4hlen");
+        dlg.add("statictext", undefined, "Lege fest, wie die freigegebenen Mailingdaten weiterverarbeitet werden sollen.");
+
+        var bereich = dlg.add("panel");
+        bereich.orientation = "column";
+        bereich.alignChildren = ["left", "top"];
+        bereich.margins = 15;
+        bereich.spacing = 10;
+
+        var r1 = bereich.add("radiobutton", undefined, "InDesign \u2013 Adressdaten f\u00fcr Datenzusammenf\u00fchrung");
+        var r2 = bereich.add("radiobutton", undefined, "CSV \u2013 bereinigte und freigegebene Datens\u00e4tze");
+        var r3 = bereich.add("radiobutton", undefined, "XLSX \u2013 bereinigte und freigegebene Datens\u00e4tze");
+        var r4 = bereich.add("radiobutton", undefined, "Nur Adressliste / Kontrollausgabe");
+        r1.value = true;
+
+        dlg.add("statictext", undefined, "In diesem Schritt wird noch keine Datei erzeugt. Wir legen nur die gew\u00fcnschte Ausgabe fest.");
+
+        var buttons = dlg.add("group");
+        buttons.alignment = "right";
+        var zurueck = buttons.add("button", undefined, "Zur\u00fcck");
+        var weiter = buttons.add("button", undefined, "Weiter");
+
+        zurueck.onClick = function(){ dlg.close(1); };
+        weiter.onClick = function(){
+            var ausgabe = r1.value ? "InDesign" : (r2.value ? "CSV" : (r3.value ? "XLSX" : "Adressliste"));
+            csvDaten.produktionsausgabe = ausgabe;
+            dlg.close(2);
+        };
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1) {
+            zeigeMailingVerarbeitung(datei, csvDaten, mapping);
+        } else if (ergebnis == 2) {
+            alert("Produktionsausgabe gew\u00e4hlt: " + csvDaten.produktionsausgabe + "\n\nIm n\u00e4chsten Schritt bauen wir genau diese Ausgabe.");
+        }
+    }
+
     function zeigeMailingVerarbeitung(datei, csvDaten, mapping) {
         var freigegeben = csvDaten.freigegebeneDatensatznummern || [];
         var ausgeschlossen = csvDaten.ausgeschlosseneDatensatznummern || [];
@@ -321,7 +367,7 @@
         if (ergebnis == 1) {
             zeigeFinaleFreigabe(datei, csvDaten, mapping);
         } else if (ergebnis == 2) {
-            alert("Die freigegebenen Datens\u00e4tze sind korrekt gefiltert.\n\nAls n\u00e4chstes legen wir fest, welche Produktionsausgabe daraus erzeugt wird.");
+            zeigeProduktionsausgabeAuswahl(datei, csvDaten, mapping);
         }
     }
 
