@@ -303,6 +303,96 @@
         }
     }
 
+    function mappingWertSetzen(csvDaten, mapping, datensatz, feld, wert) {
+        var index = mappingSpaltenindex(csvDaten, mapping, feld);
+        if (index < 0) return false;
+        while (datensatz.length <= index) datensatz.push("");
+        datensatz[index] = wert;
+        return true;
+    }
+
+    function datensatzHatPruefhinweis(nr, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen) {
+        var i;
+        for (i = 0; i < plzHinweise.length; i++) if (plzHinweise[i].datensatz == nr) return true;
+        for (i = 0; i < postalHinweise.length; i++) if (postalHinweise[i].datensatz == nr) return true;
+        for (i = 0; i < dublettenHinweise.length; i++) if (dublettenHinweise[i].datensatz == nr) return true;
+        for (i = 0; i < problematischeZeichen.length; i++) if (problematischeZeichen[i].datensatz == nr) return true;
+        return false;
+    }
+
+    function zeigeDatensatzBearbeiten(datei, csvDaten, mapping, nr, nurOffene) {
+        var datensatz = csvDaten.datensaetze[nr - 1];
+        var dlg = new Window("dialog", "Mailing-Assistant \u2013 Datensatz " + nr + " bearbeiten");
+        dlg.orientation = "column"; dlg.alignChildren = ["fill", "top"]; dlg.spacing = 12; dlg.margins = 20;
+
+        dlg.add("statictext", undefined, "Datensatz " + nr + " bearbeiten");
+        dlg.add("statictext", undefined, "Die Originaldatei bleibt unver\u00e4ndert. Ge\u00e4ndert wird nur die interne Arbeitskopie dieses Mailing-Auftrags.");
+
+        var formular = dlg.add("panel"); formular.orientation = "column"; formular.alignChildren = ["fill", "top"]; formular.margins = 15; formular.spacing = 8;
+        var felder = ["Firma", "Anrede", "Titel", "Vorname", "Nachname", "Adresszusatz", "Stra\u00dfe", "Hausnummer", "Postfach", "PLZ", "Ort", "Land"];
+        var eingaben = [];
+        var i;
+
+        for (i = 0; i < felder.length; i++) {
+            var feld = felder[i];
+            var index = mappingSpaltenindex(csvDaten, mapping, feld);
+            if (index < 0) continue;
+            var zeile = formular.add("group"); zeile.orientation = "row";
+            var label = zeile.add("statictext", undefined, feld + ":"); label.preferredSize.width = 130;
+            var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
+            eingaben.push({feld:feld, edit:edit});
+        }
+
+        if (eingaben.length == 0) dlg.add("statictext", undefined, "F\u00fcr diesen Datensatz sind keine bearbeitbaren Mailing-Felder zugeordnet.");
+
+        var buttons = dlg.add("group"); buttons.alignment = "right";
+        var abbrechen = buttons.add("button", undefined, "Abbrechen");
+        var speichern = buttons.add("button", undefined, "Speichern");
+        speichern.enabled = eingaben.length > 0;
+
+        abbrechen.onClick = function(){ dlg.close(1); };
+        speichern.onClick = function(){
+            var j;
+            for (j = 0; j < eingaben.length; j++) {
+                mappingWertSetzen(csvDaten, mapping, datensatz, eingaben[j].feld, eingaben[j].edit.text);
+            }
+
+            var plzNeu = deutschePlzPruefen(csvDaten, mapping);
+            var postalNeu = postalischePflichtfelderPruefen(csvDaten, mapping);
+            var dublettenNeu = eindeutigeDublettenPruefen(csvDaten, mapping);
+            var problemNeu = problematischeZeichenErkennen(csvDaten);
+
+            if (!csvDaten.freigabestatus) csvDaten.freigabestatus = {};
+            csvDaten.freigabestatus[nr] = datensatzHatPruefhinweis(nr, plzNeu, postalNeu, dublettenNeu, problemNeu) ? "Pr\u00fcfen" : "\u00dcbernehmen";
+
+            dlg.close(2);
+
+            if (csvDaten.freigabestatus[nr] == "\u00dcbernehmen") {
+                alert("Datensatz " + nr + " wurde gespeichert und erneut gepr\u00fcft.\n\nEs sind keine Pr\u00fcfhinweise mehr offen. Der Datensatz wurde auf \u201e\u00dcbernehmen\u201c gesetzt.");
+            } else {
+                alert("Datensatz " + nr + " wurde gespeichert und erneut gepr\u00fcft.\n\nEs bestehen weiterhin Pr\u00fcfhinweise.");
+            }
+
+            zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzNeu, postalNeu, dublettenNeu, problemNeu, nurOffene);
+        };
+
+        dlg.center();
+        var ergebnis = dlg.show();
+
+        if (ergebnis == 1) {
+            zeigeDatensatzFreigabe(
+                datei,
+                csvDaten,
+                mapping,
+                deutschePlzPruefen(csvDaten, mapping),
+                postalischePflichtfelderPruefen(csvDaten, mapping),
+                eindeutigeDublettenPruefen(csvDaten, mapping),
+                problematischeZeichenErkennen(csvDaten),
+                nurOffene
+            );
+        }
+    }
+
     function zeigeDatensatzFreigabe(datei, csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen, nurOffene) {
         var auffaellig = auffaelligeDatensaetzeSammeln(csvDaten, mapping, plzHinweise, postalHinweise, dublettenHinweise, problematischeZeichen);
         var vorhandenerStatus = csvDaten.freigabestatus || {};
@@ -330,7 +420,8 @@
             var k1 = kopf.add("statictext", undefined, "Datensatz"); k1.preferredSize.width = 70;
             var k2 = kopf.add("statictext", undefined, "Empf\u00e4nger"); k2.preferredSize.width = 180;
             var k3 = kopf.add("statictext", undefined, "Pr\u00fcfgrund"); k3.preferredSize.width = 420;
-            kopf.add("statictext", undefined, "Status");
+            var k4 = kopf.add("statictext", undefined, "Status"); k4.preferredSize.width = 120;
+            kopf.add("statictext", undefined, "Aktion");
 
             var panel = dlg.add("panel"); panel.orientation = "column"; panel.alignChildren = ["fill", "top"]; panel.margins = 12; panel.spacing = 5;
             var i;
@@ -350,6 +441,13 @@
                 var dd = row.add("dropdownlist", undefined, ["Pr\u00fcfen", "\u00dcbernehmen", "Ausschlie\u00dfen"]); dd.preferredSize.width = 120;
                 var bestehend = vorhandenerStatus[nr] || "Pr\u00fcfen";
                 dd.selection = bestehend == "\u00dcbernehmen" ? 1 : (bestehend == "Ausschlie\u00dfen" ? 2 : 0);
+                var bearbeiten = row.add("button", undefined, "Bearbeiten"); bearbeiten.preferredSize.width = 90;
+                bearbeiten.datensatzNummer = nr;
+                bearbeiten.onClick = function(){
+                    var ziel = this.datensatzNummer;
+                    dlg.close(3);
+                    zeigeDatensatzBearbeiten(datei, csvDaten, mapping, ziel, nurOffene);
+                };
                 auswahl.push({datensatz:nr, dropdown:dd});
             }
         } else {
