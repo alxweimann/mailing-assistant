@@ -1835,11 +1835,13 @@
             }
 
             function exportWert(datensatz, feld) {
-                var wert = wertAusDatensatz(mapping, datensatz, feld);
-                if (wert != "") return wert;
+                var index = mappingSpaltenindex(csvDaten, mapping, feld);
+                if (index >= 0 && index < datensatz.length) {
+                    return trimText(datensatz[index]);
+                }
 
-                // Robuster Fallback für Straße: Falls die Mapping-Referenz beim Export
-                // verloren geht, die Quellspalte anhand ihres Namens direkt auflösen.
+                // Fallback nur für Straße: Quellspalte anhand des tatsächlichen
+                // Spaltennamens direkt auflösen, falls das Mapping fehlt.
                 if (feld == "Straße") {
                     var aliases = {"strasse":true, "street":true, "streetname":true};
                     var s;
@@ -1850,7 +1852,7 @@
                     }
                 }
 
-                return wert;
+                return "";
             }
 
             var zeilen = [];
