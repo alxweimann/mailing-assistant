@@ -546,6 +546,43 @@
         var eingaben = [];
         var i;
 
+        function fehlerhafteBearbeitungsfelder() {
+            var fehler = {};
+            var firma = mappingWert(csvDaten, mapping, datensatz, "Firma");
+            var vorname = mappingWert(csvDaten, mapping, datensatz, "Vorname");
+            var nachname = mappingWert(csvDaten, mapping, datensatz, "Nachname");
+            var strasse = mappingWert(csvDaten, mapping, datensatz, "Stra\u00dfe");
+            var hausnummer = mappingWert(csvDaten, mapping, datensatz, "Hausnummer");
+            var postfach = mappingWert(csvDaten, mapping, datensatz, "Postfach");
+            var plz = mappingWert(csvDaten, mapping, datensatz, "PLZ");
+            var ort = mappingWert(csvDaten, mapping, datensatz, "Ort");
+            var land = mappingWert(csvDaten, mapping, datensatz, "Land");
+            var landKlein = land.toLowerCase();
+            var istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
+
+            if (firma == "" && vorname == "" && nachname == "") {
+                fehler["Firma"] = true;
+                fehler["Vorname"] = true;
+                fehler["Nachname"] = true;
+            }
+
+            if (postfach == "") {
+                if (strasse == "") {
+                    fehler["Stra\u00dfe"] = true;
+                    fehler["Postfach"] = true;
+                } else if (hausnummer == "") {
+                    fehler["Hausnummer"] = true;
+                }
+            }
+
+            if (plz == "" || (istDeutschland && !/^\d{5}$/.test(plz))) fehler["PLZ"] = true;
+            if (ort == "") fehler["Ort"] = true;
+
+            return fehler;
+        }
+
+        var fehlerfelder = fehlerhafteBearbeitungsfelder();
+
         for (i = 0; i < felder.length; i++) {
             var feld = felder[i];
             var index = mappingSpaltenindex(csvDaten, mapping, feld);
@@ -553,10 +590,31 @@
             var zeile = formular.add("group"); zeile.orientation = "row";
             var label = zeile.add("statictext", undefined, feld + ":"); label.preferredSize.width = 130;
             var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
+
+            if (fehlerfelder[feld]) {
+                try {
+                    var rotLabel = label.graphics.newPen(label.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+                    label.graphics.foregroundColor = rotLabel;
+                    var rotEdit = edit.graphics.newPen(edit.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+                    edit.graphics.foregroundColor = rotEdit;
+                } catch (e) {}
+            }
+
             eingaben.push({feld:feld, edit:edit});
         }
 
         if (eingaben.length == 0) dlg.add("statictext", undefined, "F\u00fcr diesen Datensatz sind keine bearbeitbaren Mailing-Felder zugeordnet.");
+        else {
+            var hatFehlerfeld = false;
+            var fk;
+            for (fk in fehlerfelder) if (fehlerfelder.hasOwnProperty(fk) && fehlerfelder[fk]) { hatFehlerfeld = true; break; }
+            if (hatFehlerfeld) {
+                var fehlerHinweis = dlg.add("statictext", undefined, "Rot markierte Felder m\u00fcssen gepr\u00fcft oder erg\u00e4nzt werden.");
+                try {
+                    fehlerHinweis.graphics.foregroundColor = fehlerHinweis.graphics.newPen(fehlerHinweis.graphics.PenType.SOLID_COLOR, [1, 0.25, 0.25], 1);
+                } catch (e2) {}
+            }
+        }
 
         var buttons = dlg.add("group"); buttons.alignment = "right";
         var abbrechen = buttons.add("button", undefined, "Abbrechen");
