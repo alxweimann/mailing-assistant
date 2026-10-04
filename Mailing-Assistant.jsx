@@ -838,6 +838,14 @@
         var fehlerPfad = Folder.temp.fsName + "/mailing_assistant_error_" + stamp + ".txt";
         var scriptPfad = Folder.temp.fsName + "/mailing_assistant_import_" + stamp + ".vbs";
 
+        function fortschrittSauberSchliessen() {
+            try { fortschritt.hide(); } catch (e0) {}
+            try { fortschritt.update(); } catch (e1) {}
+            $.sleep(120);
+            try { fortschritt.close(); } catch (e2) {}
+            $.sleep(120);
+        }
+
         function dateiLoeschen(pfad) {
             try {
                 var x = File(pfad);
@@ -960,7 +968,7 @@
         var scriptDatei = File(scriptPfad);
         scriptDatei.encoding = "UTF-8";
         if (!scriptDatei.open("w")) {
-            try { fortschritt.close(); } catch (e6) {}
+            fortschrittSauberSchliessen();
             throw new Error("Tempor\u00e4res Importskript konnte nicht erstellt werden.");
         }
         scriptDatei.write(vb);
@@ -1035,8 +1043,7 @@
             if (first < 0) throw new Error("Das Excel-Tabellenblatt enth\u00e4lt keine bef\u00fcllten Zellen.");
             if (first > 0) m = m.slice(first);
 
-            $.sleep(150);
-            try { fortschritt.close(); } catch (e8) {}
+            fortschrittSauberSchliessen();
 
             dateiLoeschen(ausgabe);
             dateiLoeschen(statusPfad);
@@ -1046,7 +1053,7 @@
 
             return {rohzeilen:m};
         } catch (fehler) {
-            try { fortschritt.close(); } catch (e9) {}
+            fortschrittSauberSchliessen();
             dateiLoeschen(ausgabe);
             dateiLoeschen(statusPfad);
             dateiLoeschen(fertigPfad);
