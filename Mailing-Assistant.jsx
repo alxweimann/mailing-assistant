@@ -1310,7 +1310,38 @@
         for(i=0;i<zeile.length;i++){w=trimText(zeile[i]).toLowerCase();for(j=0;j<bekannte.length;j++){if(bekannte[j]===w){treffer++;break;}}}
         return treffer>=1;
     }
-    function xlsxDatenInStruktur(roh,hat){var m=roh.rohzeilen,max=0,i,j;for(i=0;i<m.length;i++)if(m[i].length>max)max=m[i].length;var s=[],d=[];if(hat){for(j=0;j<max;j++)s.push(trimText(m[0][j]||"")||"Spalte "+(j+1));i=1;}else{for(j=0;j<max;j++)s.push("Spalte "+(j+1));i=0;}for(;i<m.length;i++){var z=m[i].slice(0);while(z.length<max)z.push("");if(!istCsvZeileLeer(z))d.push(z);}return{spalten:s,datensaetze:d,anzahl:d.length,trennzeichen:"|",xlsx:true};}
+    function xlsxDatenInStruktur(roh,hat){
+        var m=roh.rohzeilen,max=0,i,j;
+        for(i=0;i<m.length;i++)if(m[i].length>max)max=m[i].length;
+
+        var s=[],d=[],quellzeilen=[];
+        if(hat){
+            for(j=0;j<max;j++)s.push(trimText(m[0][j]||"")||"Spalte "+(j+1));
+            i=1;
+        }else{
+            for(j=0;j<max;j++)s.push("Spalte "+(j+1));
+            i=0;
+        }
+
+        for(;i<m.length;i++){
+            var z=m[i].slice(0);
+            while(z.length<max)z.push("");
+            if(!istCsvZeileLeer(z)){
+                d.push(z);
+                // Excel-Zeilen sind 1-basiert. i ist der echte Index in den eingelesenen Rohzeilen.
+                quellzeilen.push(i+1);
+            }
+        }
+
+        return{
+            spalten:s,
+            datensaetze:d,
+            anzahl:d.length,
+            trennzeichen:"|",
+            xlsx:true,
+            quellzeilen:quellzeilen
+        };
+    }
 
     function csvDateiLesen(datei) {
         if (!datei || !datei.exists) throw new Error("Die ausgew\u00e4hlte CSV-Datei wurde nicht gefunden.");
@@ -2900,7 +2931,7 @@
             }
 
             var zeilen = [];
-            var header = ["Datensatz", "Person", "Strassenzeile", "Postfachzeile", "PLZ_Ort"];
+            var header = ["Datensatz", "Quellzeile", "Person", "Strassenzeile", "Postfachzeile", "PLZ_Ort"];
             for (i = 0; i < exportFelder.length; i++) header.push(headerName(exportFelder[i]));
             zeilen.push(header.join("\t"));
 
@@ -2909,8 +2940,13 @@
                 var nr = freigegeben[r];
                 var ds = csvDaten.datensaetze[nr - 1];
                 var prod = produktionsFelder(ds);
+                var quellzeile = csvDaten.quellzeilen && csvDaten.quellzeilen.length >= nr
+                    ? csvDaten.quellzeilen[nr - 1]
+                    : (nr + 1);
+
                 var werte = [
                     String(nr),
+                    String(quellzeile),
                     bereinigeExportWert(prod.person),
                     bereinigeExportWert(prod.strassenzeile),
                     bereinigeExportWert(prod.postfachzeile),
@@ -2987,7 +3023,7 @@
             return {
                 datei: ziel,
                 datensaetze: freigegeben.length,
-                felder: exportFelder.length + 5
+                felder: exportFelder.length + 6
             };
         }
 
