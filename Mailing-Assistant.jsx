@@ -599,15 +599,8 @@
                     var g = this.graphics;
                     try {
                         var pen = g.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                        var mass = g.measureString(this.text);
-                        var y = Math.max(0, Math.round((this.size.height - mass[1]) / 2));
-                        g.drawString(this.text, pen, 0, y);
-                    } catch (e) {
-                        try {
-                            this.graphics.foregroundColor = this.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0, 0], 1);
-                            this.graphics.drawOSControl();
-                        } catch (e2) {}
-                    }
+                        g.drawString(this.text, pen, 0, 16);
+                    } catch (e) {}
                 };
             } else {
                 var platzhalter = zeile.add("statictext", undefined, "");
