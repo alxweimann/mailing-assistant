@@ -1836,12 +1836,18 @@
         }
 
         function exportierePrueflistePdf(mapping) {
+            var protokoll=sichereTextbereinigungAnwenden(csvDaten);
             var p=pruefungen(mapping);
             var auff=auffaelligeSammelnLokal(mapping,p);
 
-            if(auff.length==0){
-                alert("Es gibt keine auff\u00e4lligen Datens\u00e4tze f\u00fcr eine Pr\u00fcfliste.");
+            if(auff.length==0 && protokoll.length==0){
+                alert("Es gibt keine Pr\u00fcfhinweise oder automatischen Bereinigungen f\u00fcr eine Pr\u00fcfliste.");
                 return;
+            }
+
+            function quellzeileFuerDatensatz(nr){
+                if(csvDaten.quellzeilen && csvDaten.quellzeilen.length>=nr)return csvDaten.quellzeilen[nr-1];
+                return nr+1;
             }
 
             function dateinameTeil(text) {
@@ -1950,8 +1956,9 @@
                     zeichneText(stream,linkerRand,y,"Kunde: "+(aktuellerAuftrag.kunde||"-"),"F1",9); y-=13;
                     zeichneText(stream,linkerRand,y,"Bezeichnung: "+(aktuellerAuftrag.bezeichnung||"-"),"F1",9); y-=13;
                     zeichneText(stream,linkerRand,y,"Produktionsdatum: "+(aktuellerAuftrag.produktionsdatum||"-"),"F1",9); y-=13;
-                    zeichneText(stream,linkerRand,y,"Auff\u00e4llige Datens\u00e4tze: "+auff.length,"F1",9); y-=18;
-                    zeichneText(stream,linkerRand,y,"Bitte pr\u00fcfen Sie die folgenden Datens\u00e4tze und vermerken Sie die gew\u00fcnschte Korrektur.","F1",9); y-=22;
+                    zeichneText(stream,linkerRand,y,"Auff\u00e4llige Datens\u00e4tze: "+auff.length,"F1",9); y-=13;
+                    zeichneText(stream,linkerRand,y,"Automatisch bereinigte Felder: "+protokoll.length,"F1",9); y-=18;
+                    zeichneText(stream,linkerRand,y,"Die Pr\u00fcfliste dokumentiert offene Pr\u00fcfhinweise und bereits automatisch bereinigte Felder.","F1",9); y-=22;
                 }
 
                 function seiteAbschliessen() {
@@ -1995,8 +2002,8 @@
                         neueSeite();
                     }
 
-                    zeichneText(stream,linkerRand,y,"Datensatz "+nr,"F2",10);
-                    zeichneText(stream,115,y,emp,"F2",10);
+                    zeichneText(stream,linkerRand,y,"Datensatz "+nr+"  |  Quellzeile "+quellzeileFuerDatensatz(nr),"F2",10);
+                    zeichneText(stream,205,y,emp,"F2",10);
                     y-=15;
                     zeichneText(stream,linkerRand,y,adr,"F1",9);
                     y-=15;
@@ -2018,6 +2025,63 @@
                     zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.85",0.5);
                     y-=18;
                     datensatzProSeite++;
+                }
+
+                if(protokoll.length>0){
+                    if(y<690){
+                        seiteAbschliessen();
+                        neueSeite();
+                    }
+
+                    zeichneText(stream,linkerRand,y,"AUTOMATISCH BEREINIGTE FELDER","F2",12);
+                    y-=17;
+                    zeichneText(stream,linkerRand,y,"Diese \u00c4nderungen wurden eindeutig erkannt und automatisch angewendet.","F1",8.5);
+                    y-=20;
+
+                    var bi;
+                    for(bi=0;bi<protokoll.length;bi++){
+                        var bp=protokoll[bi];
+                        var vorherText=sichtbarerBereinigungstext(bp.vorher);
+                        var nachherText=sichtbarerBereinigungstext(bp.nachher);
+                        var vorherZeilen=textBrechen(vorherText,86);
+                        var nachherZeilen=textBrechen(nachherText,86);
+                        var maxZeilen=vorherZeilen.length>nachherZeilen.length?vorherZeilen.length:nachherZeilen.length;
+                        var hoehe=62+(maxZeilen-1)*11;
+
+                        if(y-hoehe<55){
+                            seiteAbschliessen();
+                            neueSeite();
+                            zeichneText(stream,linkerRand,y,"AUTOMATISCH BEREINIGTE FELDER (FORTSETZUNG)","F2",12);
+                            y-=22;
+                        }
+
+                        zeichneText(
+                            stream,
+                            linkerRand,
+                            y,
+                            "Datensatz "+bp.datensatz+"  |  Quellzeile "+quellzeileFuerDatensatz(bp.datensatz)+"  |  Feld: "+bp.spalte,
+                            "F2",
+                            9
+                        );
+                        y-=14;
+
+                        zeichneText(stream,linkerRand,y,"Vorher:","F2",8.5);
+                        var bz;
+                        for(bz=0;bz<vorherZeilen.length;bz++){
+                            zeichneText(stream,92,y,vorherZeilen[bz],"F1",8.5);
+                            y-=11;
+                        }
+
+                        zeichneText(stream,linkerRand,y,"Nachher:","F2",8.5);
+                        for(bz=0;bz<nachherZeilen.length;bz++){
+                            zeichneText(stream,92,y,nachherZeilen[bz],"F1",8.5);
+                            y-=11;
+                        }
+
+                        y-=5;
+                        zeichneLinie(stream,linkerRand,y,rechterRand,y,"0.82",0.45);
+                        y-=12;
+                    }
                 }
 
                 seiteAbschliessen();
@@ -2113,7 +2177,7 @@
             aktionen.spacing=12;
 
             var pdf=aktionen.add("button",undefined,"Pr\u00fcfliste als PDF");
-            pdf.enabled=auff.length>0;
+            pdf.enabled=auff.length>0 || protokoll.length>0;
             var freigabe=aktionen.add("button",undefined,"Weiter zur Datensatzfreigabe");
 
             pdf.onClick=function(){ aktuellesMapping=mapping; dlg.close(7); };
