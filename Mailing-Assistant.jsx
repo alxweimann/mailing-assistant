@@ -561,22 +561,23 @@
             var istDeutschland = land == "" || landKlein == "deutschland" || landKlein == "de" || landKlein == "deu" || landKlein == "germany";
 
             if (firma == "" && vorname == "" && nachname == "") {
-                fehler["Firma"] = true;
-                fehler["Vorname"] = true;
-                fehler["Nachname"] = true;
+                fehler["Firma"] = "Empf\u00e4nger fehlt";
+                fehler["Vorname"] = "Empf\u00e4nger fehlt";
+                fehler["Nachname"] = "Empf\u00e4nger fehlt";
             }
 
             if (postfach == "") {
                 if (strasse == "") {
-                    fehler["Stra\u00dfe"] = true;
-                    fehler["Postfach"] = true;
+                    fehler["Stra\u00dfe"] = "fehlt";
+                    fehler["Postfach"] = "oder Stra\u00dfe";
                 } else if (hausnummer == "") {
-                    fehler["Hausnummer"] = true;
+                    fehler["Hausnummer"] = "fehlt";
                 }
             }
 
-            if (plz == "" || (istDeutschland && !/^\d{5}$/.test(plz))) fehler["PLZ"] = true;
-            if (ort == "") fehler["Ort"] = true;
+            if (plz == "") fehler["PLZ"] = "fehlt";
+            else if (istDeutschland && !/^\d{5}$/.test(plz)) fehler["PLZ"] = "ung\u00fcltig";
+            if (ort == "") fehler["Ort"] = "fehlt";
 
             return fehler;
         }
@@ -592,34 +593,24 @@
             var edit = zeile.add("edittext", undefined, mappingWert(csvDaten, mapping, datensatz, feld)); edit.characters = 34;
 
             if (fehlerfelder[feld]) {
-                label.text = "\u26a0 " + feld + ":";
+                var hinweis = zeile.add("statictext", undefined, fehlerfelder[feld]);
+                hinweis.preferredSize.width = 95;
                 try {
-                    var rotLabel = label.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
-                    label.graphics.foregroundColor = rotLabel;
+                    var rotHinweis = hinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [0.85, 0.2, 0.2], 1);
+                    hinweis.graphics.foregroundColor = rotHinweis;
 
-                    var rotEdit = edit.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
-                    edit.graphics.foregroundColor = rotEdit;
-
-                    var hellrot = edit.graphics.newBrush(ScriptUIGraphics.BrushType.SOLID_COLOR, [1, 0.88, 0.88]);
+                    var hellrot = edit.graphics.newBrush(ScriptUIGraphics.BrushType.SOLID_COLOR, [1, 0.93, 0.93]);
                     edit.graphics.backgroundColor = hellrot;
                 } catch (e) {}
+            } else {
+                var platzhalter = zeile.add("statictext", undefined, "");
+                platzhalter.preferredSize.width = 95;
             }
 
             eingaben.push({feld:feld, edit:edit});
         }
 
         if (eingaben.length == 0) dlg.add("statictext", undefined, "F\u00fcr diesen Datensatz sind keine bearbeitbaren Mailing-Felder zugeordnet.");
-        else {
-            var hatFehlerfeld = false;
-            var fk;
-            for (fk in fehlerfelder) if (fehlerfelder.hasOwnProperty(fk) && fehlerfelder[fk]) { hatFehlerfeld = true; break; }
-            if (hatFehlerfeld) {
-                var fehlerHinweis = dlg.add("statictext", undefined, "Rot markierte Felder m\u00fcssen gepr\u00fcft oder erg\u00e4nzt werden.");
-                try {
-                    fehlerHinweis.graphics.foregroundColor = fehlerHinweis.graphics.newPen(ScriptUIGraphics.PenType.SOLID_COLOR, [1, 0.2, 0.2], 1);
-                } catch (e2) {}
-            }
-        }
 
         var buttons = dlg.add("group"); buttons.alignment = "right";
         var abbrechen = buttons.add("button", undefined, "Abbrechen");
